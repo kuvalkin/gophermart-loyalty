@@ -23,9 +23,11 @@ type Config struct {
 
 func Resolve() (*Config, error) {
 	conf := &Config{
-		RunAddress:           "localhost:8080",
-		DatabaseDSN:          "",
-		AccrualSystemAddress: "",
+		RunAddress:              "localhost:8080",
+		DatabaseDSN:             "",
+		DatabaseTimeout:         5 * time.Second,
+		DatabaseQueryMaxRetries: 3,
+		AccrualSystemAddress:    "",
 	}
 
 	parseFlags(conf)
