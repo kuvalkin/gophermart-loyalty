@@ -59,6 +59,7 @@ func main() {
 	go listenAndServe(serv)
 
 	waitForSignalAndShutdown(serv)
+	log.Logger().Info("Bye :)")
 }
 
 func initDB(cnf *config.Config) (*sql.DB, error) {
