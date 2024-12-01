@@ -31,13 +31,13 @@ func main() {
 		}
 	}()
 
-	cnf, err := config.Resolve()
+	conf, err := config.Resolve()
 	if err != nil {
 		log.Logger().Fatalw("failed to resolve config", "error", err)
 		os.Exit(1)
 	}
 
-	db, err := initDB(cnf)
+	db, err := initDB(conf)
 	if err != nil {
 		log.Logger().Fatalw("failed to initialize database", "error", err)
 		os.Exit(1)
@@ -52,13 +52,13 @@ func main() {
 		}
 	}()
 
-	userService, err := initUserService(db)
+	userService, err := initUserService(conf, db)
 	if err != nil {
 		log.Logger().Fatalw("failed to initialize user service", "error", err)
 		os.Exit(1)
 	}
 
-	serv := transport.NewServer(cnf, &transport.Services{
+	serv := transport.NewServer(conf, &transport.Services{
 		User: userService,
 	})
 
@@ -90,8 +90,8 @@ func initDB(cnf *config.Config) (*sql.DB, error) {
 	return db, nil
 }
 
-func initUserService(db *sql.DB) (user.Service, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func initUserService(conf *config.Config, db *sql.DB) (user.Service, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), conf.DatabaseTimeout)
 	defer cancel()
 
 	tokenSecret, passwordHash, err := userStorage.GetSecretsFromDB(ctx, db)
@@ -123,7 +123,15 @@ func initUserService(db *sql.DB) (user.Service, error) {
 		}
 	}
 
-	return user.NewService(userStorage.NewDatabaseRepository(db), tokenSecret, passwordHash), nil
+	return user.NewService(
+		userStorage.NewDatabaseRepository(db, conf.DatabaseTimeout),
+		&user.Options{
+			TokenSecret:           tokenSecret,
+			PasswordSalt:          passwordHash,
+			MinPasswordLength:     conf.MinPasswordLength,
+			TokenExpirationPeriod: conf.TokenExpirationPeriod,
+		},
+	)
 }
 
 func listenAndServe(serv *transport.Server) {

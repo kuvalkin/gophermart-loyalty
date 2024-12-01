@@ -1,9 +1,8 @@
 package user
 
 import (
-	"bytes"
 	"crypto/rand"
-	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 )
 
@@ -24,12 +23,5 @@ func GeneratePasswordSalt() (string, error) {
 		return "", fmt.Errorf("failed to generate random string: %w", err)
 	}
 
-	buf := bytes.NewBuffer(nil)
-	encoder := base64.NewEncoder(base64.StdEncoding, buf)
-	_, err = encoder.Write(randomBytes)
-	if err != nil {
-		return "", fmt.Errorf("failed to encode random bytes: %w", err)
-	}
-
-	return buf.String(), nil
+	return hex.EncodeToString(randomBytes), nil
 }

@@ -18,7 +18,7 @@ func GetSecretsFromDB(ctx context.Context, db *sql.DB) ([]byte, string, error) {
 	}
 
 	var jwtSecret []byte
-	if jwtSecretString == "" {
+	if jwtSecretString != "" {
 		jwtSecret, err = hex.DecodeString(jwtSecretString)
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to decode jwt secret: %w", err)

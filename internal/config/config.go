@@ -14,20 +14,23 @@ import (
 )
 
 type Config struct {
-	RunAddress              string `env:"RUN_ADDRESS"`
-	DatabaseDSN             string `env:"DATABASE_URI"`
-	DatabaseTimeout         time.Duration
-	DatabaseQueryMaxRetries int
-	AccrualSystemAddress    string `env:"ACCRUAL_SYSTEM_ADDRESS"`
+	RunAddress            string `env:"RUN_ADDRESS"`
+	DatabaseDSN           string `env:"DATABASE_URI"`
+	DatabaseTimeout       time.Duration
+	AccrualSystemAddress  string `env:"ACCRUAL_SYSTEM_ADDRESS"`
+	MinPasswordLength     int
+	TokenExpirationPeriod time.Duration
 }
 
 func Resolve() (*Config, error) {
 	conf := &Config{
-		RunAddress:              "localhost:8080",
-		DatabaseDSN:             "",
-		DatabaseTimeout:         5 * time.Second,
-		DatabaseQueryMaxRetries: 3,
-		AccrualSystemAddress:    "",
+		RunAddress:           "localhost:8080",
+		DatabaseDSN:          "",
+		AccrualSystemAddress: "",
+		// hardcoded for now
+		DatabaseTimeout:       5 * time.Second,
+		MinPasswordLength:     12,
+		TokenExpirationPeriod: time.Hour,
 	}
 
 	parseFlags(conf)
