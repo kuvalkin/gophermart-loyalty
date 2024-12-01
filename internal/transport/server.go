@@ -7,6 +7,7 @@ import (
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/config"
 	"github.com/kuvalkin/gophermart-loyalty/internal/log"
+	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
 )
 
 type Server struct {
@@ -14,8 +15,12 @@ type Server struct {
 	address string
 }
 
-func NewServer(conf *config.Config) *Server {
-	app := createAppWithRoutes(conf)
+type Services struct {
+	User user.Service
+}
+
+func NewServer(conf *config.Config, services *Services) *Server {
+	app := createAppWithRoutes(services)
 
 	return &Server{app: app, address: conf.RunAddress}
 }

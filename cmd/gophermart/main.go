@@ -13,6 +13,8 @@ import (
 	"github.com/kuvalkin/gophermart-loyalty/internal/config"
 	"github.com/kuvalkin/gophermart-loyalty/internal/database"
 	"github.com/kuvalkin/gophermart-loyalty/internal/log"
+	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
+	userStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/user"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport"
 )
 
@@ -50,7 +52,15 @@ func main() {
 		}
 	}()
 
-	serv := transport.NewServer(cnf)
+	userService, err := initUserService(db)
+	if err != nil {
+		log.Logger().Fatalw("failed to initialize user service", "error", err)
+		os.Exit(1)
+	}
+
+	serv := transport.NewServer(cnf, &transport.Services{
+		User: userService,
+	})
 
 	go listenAndServe(serv)
 
@@ -78,6 +88,42 @@ func initDB(cnf *config.Config) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func initUserService(db *sql.DB) (user.Service, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	tokenSecret, passwordHash, err := userStorage.GetSecretsFromDB(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read secrets from db: %w", err)
+	}
+
+	if len(tokenSecret) == 0 {
+		tokenSecret, err = user.GenerateTokenSecret()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate token secret: %w", err)
+		}
+
+		err = userStorage.WriteTokenSecretToDB(ctx, db, tokenSecret)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save jwt secret to db: %w", err)
+		}
+	}
+
+	if passwordHash == "" {
+		salt, err := user.GeneratePasswordSalt()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate password salt: %w", err)
+		}
+
+		err = userStorage.WritePasswordSaltToDB(ctx, db, salt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save password salt to db: %w", err)
+		}
+	}
+
+	return user.NewService(userStorage.NewDatabaseRepository(db), tokenSecret, passwordHash), nil
 }
 
 func listenAndServe(serv *transport.Server) {
