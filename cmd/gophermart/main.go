@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	stdLog "log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,6 +13,7 @@ import (
 	"github.com/kuvalkin/gophermart-loyalty/internal/config"
 	"github.com/kuvalkin/gophermart-loyalty/internal/database"
 	"github.com/kuvalkin/gophermart-loyalty/internal/log"
+	"github.com/kuvalkin/gophermart-loyalty/internal/transport"
 )
 
 func main() {
@@ -51,10 +50,7 @@ func main() {
 		}
 	}()
 
-	serv := &http.Server{
-		Addr:    cnf.RunAddress,
-		Handler: http.DefaultServeMux, // todo
-	}
+	serv := transport.NewServer(cnf)
 
 	go listenAndServe(serv)
 
@@ -84,26 +80,22 @@ func initDB(cnf *config.Config) (*sql.DB, error) {
 	return db, nil
 }
 
-func listenAndServe(serv *http.Server) {
-	log.Logger().Infow("starting server", "address", serv.Addr)
-
+func listenAndServe(serv *transport.Server) {
 	err := serv.ListenAndServe()
 
-	if !errors.Is(err, http.ErrServerClosed) {
+	if err != nil {
 		log.Logger().Fatalw("error starting server", "error", err)
 		os.Exit(1)
 	}
 }
 
-func waitForSignalAndShutdown(serv *http.Server) {
+func waitForSignalAndShutdown(serv *transport.Server) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
 	// Waiting (indefinitely) for a signal
 	sig := <-stop
 	log.Logger().Debugw("received signal", "signal", sig)
-
-	log.Logger().Info("shutting down server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
