@@ -15,6 +15,13 @@ import (
 	"github.com/kuvalkin/gophermart-loyalty/internal/storage/user"
 )
 
+var ErrInvalidLogin = errors.New("invalid login")
+var ErrInvalidPassword = errors.New("password is too short")
+var ErrLoginTaken = errors.New("user with this login already exists")
+var ErrInvalidPair = errors.New("login/password pair is invalid")
+var ErrInvalidToken = errors.New("invalid token")
+var ErrInternal = errors.New("internal error")
+
 type Service interface {
 	Register(ctx context.Context, login string, password string) error
 	// Login authenticates a user and returns auth token on success
@@ -50,8 +57,12 @@ type service struct {
 }
 
 func (s *service) Register(ctx context.Context, login string, password string) error {
+	if login == "" {
+		return ErrInvalidLogin
+	}
+
 	if len(password) < s.options.MinPasswordLength {
-		return fmt.Errorf("password length must be at least %d characters", s.options.MinPasswordLength)
+		return ErrInvalidPassword
 	}
 
 	hash := s.hashPassword(password)
@@ -59,13 +70,12 @@ func (s *service) Register(ctx context.Context, login string, password string) e
 	err := s.repo.Add(ctx, login, hash)
 	if err != nil {
 		if errors.Is(err, user.ErrLoginNotUnique) {
-			// do not say explicitly that login is taken in case of bruteforce
-			return fmt.Errorf("login is invalid")
+			return ErrLoginTaken
 		}
 
 		s.logger.Errorw("user adding failed", "error", err)
 
-		return errors.New("failed to register user")
+		return ErrInternal
 	}
 
 	return nil
@@ -76,24 +86,22 @@ func (s *service) Login(ctx context.Context, login string, password string) (str
 	if err != nil {
 		s.logger.Errorw("failed to fetch password hash", "login", login, "error", err)
 
-		return "", errors.New("storage read error")
+		return "", ErrInternal
 	}
 
-	invalidPairErr := errors.New("invalid login/password pair")
-
 	if !found {
-		return "", invalidPairErr
+		return "", ErrInvalidPair
 	}
 
 	if savedHash != s.hashPassword(password) {
-		return "", invalidPairErr
+		return "", ErrInvalidPair
 	}
 
 	token, err := s.issueToken()
 	if err != nil {
 		s.logger.Errorw("failed to issue token", "login", login, "error", err)
 
-		return "", errors.New("failed to issue token")
+		return "", ErrInternal
 	}
 
 	return token, nil
@@ -119,11 +127,11 @@ func (s *service) CheckToken(_ context.Context, token string) error {
 	if err != nil {
 		s.logger.Infow("failed to parse token", "error", err)
 
-		return fmt.Errorf("invalid token")
+		return ErrInvalidToken
 	}
 
 	if !parsedToken.Valid {
-		return fmt.Errorf("invalid token")
+		return ErrInvalidToken
 	}
 
 	return nil
