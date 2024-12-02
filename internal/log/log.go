@@ -2,8 +2,9 @@ package log
 
 import (
 	"fmt"
-	"runtime"
+	"testing"
 
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -11,23 +12,6 @@ var logger = zap.NewNop().Sugar()
 
 func Logger() *zap.SugaredLogger {
 	return logger
-}
-
-func IsOutputsToConsole() bool {
-	// for now, we only use `zap.NewDevelopment`, which uses stderr as output
-	return true
-}
-
-func IsColorOutputSupported() bool {
-	if !IsOutputsToConsole() {
-		return false
-	}
-
-	if runtime.GOOS == "windows" {
-		return false
-	}
-
-	return true
 }
 
 func InitLogger() error {
@@ -39,4 +23,8 @@ func InitLogger() error {
 	logger = noSugarLogger.Sugar()
 
 	return nil
+}
+
+func InitTestLogger(t *testing.T) {
+	require.NoError(t, InitLogger())
 }
