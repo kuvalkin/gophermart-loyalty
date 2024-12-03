@@ -12,7 +12,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/log"
-	"github.com/kuvalkin/gophermart-loyalty/internal/storage/user"
 )
 
 var ErrInvalidLogin = errors.New("invalid login")
@@ -36,9 +35,16 @@ type Options struct {
 	TokenExpirationPeriod time.Duration
 }
 
+var ErrLoginNotUnique = errors.New("user with this login already exists")
+
+type Repository interface {
+	Add(ctx context.Context, login string, passwordHash string) error
+	GetPasswordHash(ctx context.Context, login string) (string, bool, error)
+}
+
 var signingMethod = jwt.SigningMethodHS256
 
-func NewService(repo user.Repository, options *Options) (Service, error) {
+func NewService(repo Repository, options *Options) (Service, error) {
 	if options == nil {
 		return nil, errors.New("no options provided")
 	}
@@ -51,7 +57,7 @@ func NewService(repo user.Repository, options *Options) (Service, error) {
 }
 
 type service struct {
-	repo    user.Repository
+	repo    Repository
 	options *Options
 	logger  *zap.SugaredLogger
 }
@@ -69,7 +75,7 @@ func (s *service) Register(ctx context.Context, login string, password string) e
 
 	err := s.repo.Add(ctx, login, hash)
 	if err != nil {
-		if errors.Is(err, user.ErrLoginNotUnique) {
+		if errors.Is(err, ErrLoginNotUnique) {
 			return ErrLoginTaken
 		}
 

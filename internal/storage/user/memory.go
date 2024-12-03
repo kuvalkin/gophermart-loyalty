@@ -2,13 +2,15 @@ package user
 
 import (
 	"context"
+
+	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
 )
 
 type memoryRepo struct {
 	storage map[string]string
 }
 
-func NewInMemoryRepository() Repository {
+func NewInMemoryRepository() user.Repository {
 	return &memoryRepo{
 		storage: make(map[string]string),
 	}
@@ -16,7 +18,7 @@ func NewInMemoryRepository() Repository {
 
 func (d *memoryRepo) Add(_ context.Context, login string, passwordHash string) error {
 	if _, exists := d.storage[login]; exists {
-		return ErrLoginNotUnique
+		return user.ErrLoginNotUnique
 	}
 
 	d.storage[login] = passwordHash

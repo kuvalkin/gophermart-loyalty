@@ -9,6 +9,8 @@ import (
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
 )
 
 type dbRepo struct {
@@ -16,7 +18,7 @@ type dbRepo struct {
 	timeout time.Duration
 }
 
-func NewDatabaseRepository(db *sql.DB, timeout time.Duration) Repository {
+func NewDatabaseRepository(db *sql.DB, timeout time.Duration) user.Repository {
 	return &dbRepo{db: db, timeout: timeout}
 }
 
@@ -27,7 +29,7 @@ func (d *dbRepo) Add(ctx context.Context, login string, passwordHash string) err
 	_, err := d.db.ExecContext(localCtx, "INSERT INTO users (login, password_hash) VALUES ($1, $2)", login, passwordHash)
 	if err != nil {
 		if isUniqueViolation(err) {
-			return ErrLoginNotUnique
+			return user.ErrLoginNotUnique
 		}
 
 		return fmt.Errorf("query error: %w", err)
