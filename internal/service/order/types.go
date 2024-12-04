@@ -3,7 +3,6 @@ package order
 import (
 	"context"
 	"errors"
-	"net/url"
 	"time"
 )
 
@@ -37,5 +36,7 @@ type Repository interface {
 }
 
 type Options struct {
-	AccrualSystemAddress url.URL
+	AccrualSystemAddress    string
+	MaxRetriesToAccrual     int
+	MaxAccrualRetryWaitTime time.Duration
 }

@@ -40,6 +40,10 @@ func (p *Pool) Release() {
 	p.pool.Release()
 }
 
+func (p *Pool) Tune(newMaxWorkers int) {
+	p.pool.Tune(newMaxWorkers)
+}
+
 func (p *Pool) Submit(task func()) error {
 	return p.pool.Submit(task)
 }

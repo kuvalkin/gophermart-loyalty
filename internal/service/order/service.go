@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/ShiraazMoollatjie/goluhn"
 	"go.uber.org/zap"
@@ -15,9 +16,15 @@ func NewService(repo Repository, options *Options) (Service, error) {
 		return nil, errors.New("no options provided")
 	}
 
+	a, err := newAccrual(options.AccrualSystemAddress, options.MaxRetriesToAccrual, options.MaxAccrualRetryWaitTime)
+	if err != nil {
+		return nil, fmt.Errorf("cant create accrual: %w", err)
+	}
+
 	return &service{
 		options: options,
 		repo:    repo,
+		accrual: a,
 		logger:  log.Logger().Named("orderService"),
 	}, nil
 }
@@ -61,7 +68,7 @@ func (s *service) Upload(ctx context.Context, userId string, number string) erro
 		return ErrInternal
 	}
 
-	resultChan, err := s.accrual.addToQueue(number)
+	resultChan, err := s.accrual.addToQueue(number, StatusNew)
 	if err != nil {
 		wrappedLogger.Errorw("can't add to queue", "error", err)
 
@@ -69,9 +76,12 @@ func (s *service) Upload(ctx context.Context, userId string, number string) erro
 	}
 
 	go func() {
-		result := <-resultChan
-		//update status
-		// emit event
+		for result := range resultChan {
+			// update status
+			// update accrual
+		}
+
+		// emit event when done
 	}()
 
 	return nil
