@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kuvalkin/gophermart-loyalty/internal/log"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/internal/test"
 )
 

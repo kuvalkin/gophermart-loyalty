@@ -6,7 +6,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"go.uber.org/zap"
 
-	"github.com/kuvalkin/gophermart-loyalty/internal/log"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
 )
 
 type Pool struct {

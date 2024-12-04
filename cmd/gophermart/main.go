@@ -10,15 +10,18 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kuvalkin/gophermart-loyalty/internal/config"
-	"github.com/kuvalkin/gophermart-loyalty/internal/database"
-	"github.com/kuvalkin/gophermart-loyalty/internal/log"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
 	userStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/user"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/config"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/database"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/event"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport"
 )
 
 func main() {
+	defer event.Release()
+
 	err := log.InitLogger()
 	if err != nil {
 		stdLog.Fatal(fmt.Errorf("failed to initialize logger: %w", err))

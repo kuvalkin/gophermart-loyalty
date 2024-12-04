@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/kuvalkin/gophermart-loyalty/internal/config"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
 	userStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/user"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/config"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport"
 )
 

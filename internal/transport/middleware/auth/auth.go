@@ -5,8 +5,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/kuvalkin/gophermart-loyalty/internal/log"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
 )
 
 func New(userService user.Service) func(ctx *fiber.Ctx) error {

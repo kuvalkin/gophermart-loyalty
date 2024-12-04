@@ -15,8 +15,8 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 
-	"github.com/kuvalkin/gophermart-loyalty/internal/log"
-	"github.com/kuvalkin/gophermart-loyalty/internal/pool"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/pool"
 )
 
 // todo refactor

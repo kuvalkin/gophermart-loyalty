@@ -7,9 +7,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 
-	"github.com/kuvalkin/gophermart-loyalty/internal/config"
-	"github.com/kuvalkin/gophermart-loyalty/internal/log"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/config"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
 )
 
 type Server struct {

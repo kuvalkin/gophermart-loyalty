@@ -8,7 +8,8 @@ import (
 	"github.com/ShiraazMoollatjie/goluhn"
 	"go.uber.org/zap"
 
-	"github.com/kuvalkin/gophermart-loyalty/internal/log"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/event"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
 )
 
 func NewService(repo Repository, options *Options) (Service, error) {
@@ -79,9 +80,11 @@ func (s *service) Upload(ctx context.Context, userId string, number string) erro
 		for result := range resultChan {
 			// update status
 			// update accrual
-		}
 
-		// emit event when done
+			if result.status == StatusProcessed && result.amount != nil {
+				event.Publish("order:processed", *result.amount)
+			}
+		}
 	}()
 
 	return nil
