@@ -5,30 +5,30 @@ import (
 
 	"github.com/google/uuid"
 
-	userPackage "github.com/kuvalkin/gophermart-loyalty/internal/service/user"
+	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
 )
 
 type memoryRepo struct {
-	storage map[string]*user
+	storage map[string]*value
 }
 
-type user struct {
+type value struct {
 	id   string
 	hash string
 }
 
-func NewInMemoryRepository() userPackage.Repository {
+func NewInMemoryRepository() user.Repository {
 	return &memoryRepo{
-		storage: make(map[string]*user),
+		storage: make(map[string]*value),
 	}
 }
 
 func (d *memoryRepo) Add(_ context.Context, login string, passwordHash string) error {
 	if _, exists := d.storage[login]; exists {
-		return userPackage.ErrLoginNotUnique
+		return user.ErrLoginNotUnique
 	}
 
-	d.storage[login] = &user{
+	d.storage[login] = &value{
 		id:   uuid.New().String(),
 		hash: passwordHash,
 	}

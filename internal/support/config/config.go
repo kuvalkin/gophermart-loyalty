@@ -18,6 +18,8 @@ type Config struct {
 	DatabaseDSN           string `env:"DATABASE_URI"`
 	DatabaseTimeout       time.Duration
 	AccrualSystemAddress  string `env:"ACCRUAL_SYSTEM_ADDRESS"`
+	AccrualMaxRetries     int
+	AccrualMaxRetryPeriod time.Duration
 	MinPasswordLength     int
 	TokenExpirationPeriod time.Duration
 }

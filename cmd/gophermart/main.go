@@ -10,7 +10,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kuvalkin/gophermart-loyalty/internal/service/order"
+	"github.com/kuvalkin/gophermart-loyalty/internal/service/order/accrual"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
+	orderStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/order"
 	userStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/user"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/config"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/database"
@@ -61,8 +64,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	orderService, err := initOrderService(conf, db)
+	if err != nil {
+		log.Logger().Fatalw("failed to initialize order service", "error", err)
+		os.Exit(1)
+	}
+
 	serv := transport.NewServer(conf, &transport.Services{
-		User: userService,
+		User:  userService,
+		Order: orderService,
 	})
 
 	go listenAndServe(serv)
@@ -134,6 +144,20 @@ func initUserService(conf *config.Config, db *sql.DB) (user.Service, error) {
 			MinPasswordLength:     conf.MinPasswordLength,
 			TokenExpirationPeriod: conf.TokenExpirationPeriod,
 		},
+	)
+}
+
+func initOrderService(conf *config.Config, db *sql.DB) (order.Service, error) {
+	poller, err := accrual.NewPoller(conf.AccrualSystemAddress, conf.AccrualMaxRetries, conf.AccrualMaxRetryPeriod)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize poller for order service: %w", err)
+	}
+
+	//todo enqueue existing not processed orders
+
+	return order.NewService(
+		orderStorage.NewDatabaseRepository(db, conf.DatabaseTimeout),
+		poller,
 	)
 }
 

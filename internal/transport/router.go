@@ -54,7 +54,7 @@ func routes(app *fiber.App, services *Services) {
 
 	authMiddleware := auth.New(services.User)
 
-	userGroup.Post("/orders", authMiddleware, upload.New(services.Orders).Handle)
+	userGroup.Post("/orders", authMiddleware, upload.New(services.Order).Handle)
 	userGroup.Get("/orders", authMiddleware, stub)
 
 	userGroup.Get("/balance", authMiddleware, stub)

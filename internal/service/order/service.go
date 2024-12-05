@@ -2,8 +2,6 @@ package order
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	"github.com/ShiraazMoollatjie/goluhn"
 	"go.uber.org/zap"
@@ -12,29 +10,18 @@ import (
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
 )
 
-func NewService(repo Repository, options *Options) (Service, error) {
-	if options == nil {
-		return nil, errors.New("no options provided")
-	}
-
-	a, err := newAccrual(options.AccrualSystemAddress, options.MaxRetriesToAccrual, options.MaxAccrualRetryWaitTime)
-	if err != nil {
-		return nil, fmt.Errorf("cant create accrual: %w", err)
-	}
-
+func NewService(repo Repository, poller AccrualPoller) (Service, error) {
 	return &service{
-		options: options,
-		repo:    repo,
-		accrual: a,
-		logger:  log.Logger().Named("orderService"),
+		repo:   repo,
+		poller: poller,
+		logger: log.Logger().Named("orderService"),
 	}, nil
 }
 
 type service struct {
-	options *Options
-	repo    Repository
-	accrual *accrual
-	logger  *zap.SugaredLogger
+	repo   Repository
+	poller AccrualPoller
+	logger *zap.SugaredLogger
 }
 
 func (s *service) Upload(ctx context.Context, userId string, number string) error {
@@ -69,7 +56,7 @@ func (s *service) Upload(ctx context.Context, userId string, number string) erro
 		return ErrInternal
 	}
 
-	resultChan, err := s.accrual.addToQueue(number, StatusNew)
+	resultChan, err := s.poller.Enqueue(number, StatusNew)
 	if err != nil {
 		localLogger.Errorw("can't add to queue", "error", err)
 
@@ -81,14 +68,14 @@ func (s *service) Upload(ctx context.Context, userId string, number string) erro
 	return nil
 }
 
-func (s *service) listenAccrualResults(resultChan <-chan accrualResult, number string) {
+func (s *service) listenAccrualResults(resultChan <-chan AccrualResult, number string) {
 	localLogger := s.logger.WithLazy("number", number)
 
 	for result := range resultChan {
-		newStatus := result.status
+		newStatus := result.Status
 
-		if result.err != nil {
-			localLogger.Errorw("received error from accrual queue, marking order as invalid", "error", result.err)
+		if result.Err != nil {
+			localLogger.Errorw("received error from accrual queue, marking order as invalid", "error", result.Err)
 
 			newStatus = StatusInvalid
 		}
@@ -97,7 +84,7 @@ func (s *service) listenAccrualResults(resultChan <-chan accrualResult, number s
 			context.Background(),
 			number,
 			newStatus,
-			result.accrual,
+			result.Accrual,
 		)
 
 		if err != nil {
@@ -105,8 +92,8 @@ func (s *service) listenAccrualResults(resultChan <-chan accrualResult, number s
 			continue
 		}
 
-		if result.status == StatusProcessed && result.accrual != nil {
-			event.Publish("order:processed", *result.accrual)
+		if result.Status == StatusProcessed && result.Accrual != nil {
+			event.Publish("order:processed", *result.Accrual)
 		}
 	}
 }

@@ -36,8 +36,12 @@ type Repository interface {
 	GetOwner(ctx context.Context, number string) (string, bool, error)
 }
 
-type Options struct {
-	AccrualSystemAddress    string
-	MaxRetriesToAccrual     int
-	MaxAccrualRetryWaitTime time.Duration
+type AccrualPoller interface {
+	Enqueue(number string, currentStatus Status) (<-chan AccrualResult, error)
+}
+
+type AccrualResult struct {
+	Status  Status
+	Accrual *int64
+	Err     error
 }

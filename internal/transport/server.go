@@ -19,8 +19,8 @@ type Server struct {
 }
 
 type Services struct {
-	User   user.Service
-	Orders order.Service
+	User  user.Service
+	Order order.Service
 }
 
 func NewServer(conf *config.Config, services *Services) *Server {
