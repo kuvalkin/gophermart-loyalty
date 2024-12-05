@@ -31,9 +31,9 @@ type accrual struct {
 }
 
 type accrualResult struct {
-	status Status
-	amount *int64
-	err    error
+	status  Status
+	accrual *int64
+	err     error
 }
 
 type accrualTask struct {
@@ -251,8 +251,8 @@ func (a *accrual) notifyAboutChanges(task *accrualTask, receivedStatus string, r
 
 	if orderStatus == StatusProcessed {
 		task.resultChan <- accrualResult{
-			status: orderStatus,
-			amount: &receivedAccrual,
+			status:  orderStatus,
+			accrual: &receivedAccrual,
 		}
 
 		return true

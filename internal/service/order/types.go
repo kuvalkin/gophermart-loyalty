@@ -32,6 +32,7 @@ type Service interface {
 
 type Repository interface {
 	Add(ctx context.Context, userId string, number string, status Status) error
+	Update(ctx context.Context, number string, status Status, accrual *int64) error
 	GetOwner(ctx context.Context, number string) (string, bool, error)
 }
 
