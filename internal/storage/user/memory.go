@@ -3,31 +3,44 @@ package user
 import (
 	"context"
 
-	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
+	"github.com/google/uuid"
+
+	userPackage "github.com/kuvalkin/gophermart-loyalty/internal/service/user"
 )
 
 type memoryRepo struct {
-	storage map[string]string
+	storage map[string]*user
 }
 
-func NewInMemoryRepository() user.Repository {
+type user struct {
+	id   string
+	hash string
+}
+
+func NewInMemoryRepository() userPackage.Repository {
 	return &memoryRepo{
-		storage: make(map[string]string),
+		storage: make(map[string]*user),
 	}
 }
 
 func (d *memoryRepo) Add(_ context.Context, login string, passwordHash string) error {
 	if _, exists := d.storage[login]; exists {
-		return user.ErrLoginNotUnique
+		return userPackage.ErrLoginNotUnique
 	}
 
-	d.storage[login] = passwordHash
+	d.storage[login] = &user{
+		id:   uuid.New().String(),
+		hash: passwordHash,
+	}
 
 	return nil
 }
 
-func (d *memoryRepo) GetPasswordHash(_ context.Context, login string) (string, bool, error) {
-	hash, ok := d.storage[login]
+func (d *memoryRepo) Find(_ context.Context, login string) (string, string, bool, error) {
+	value, ok := d.storage[login]
+	if !ok {
+		return "", "", false, nil
+	}
 
-	return hash, ok, nil
+	return value.id, value.hash, true, nil
 }

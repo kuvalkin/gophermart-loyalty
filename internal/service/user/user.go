@@ -25,7 +25,7 @@ type Service interface {
 	Register(ctx context.Context, login string, password string) error
 	// Login authenticates a user and returns auth token on success
 	Login(ctx context.Context, login string, password string) (string, error)
-	CheckToken(ctx context.Context, token string) error
+	ParseToken(ctx context.Context, token string) (string, error)
 }
 
 type Options struct {
@@ -39,7 +39,7 @@ var ErrLoginNotUnique = errors.New("user with this login already exists")
 
 type Repository interface {
 	Add(ctx context.Context, login string, passwordHash string) error
-	GetPasswordHash(ctx context.Context, login string) (string, bool, error)
+	Find(ctx context.Context, login string) (string, string, bool, error)
 }
 
 var signingMethod = jwt.SigningMethodHS256
@@ -88,7 +88,7 @@ func (s *service) Register(ctx context.Context, login string, password string) e
 }
 
 func (s *service) Login(ctx context.Context, login string, password string) (string, error) {
-	savedHash, found, err := s.repo.GetPasswordHash(ctx, login)
+	id, savedHash, found, err := s.repo.Find(ctx, login)
 	if err != nil {
 		s.logger.Errorw("failed to fetch password hash", "login", login, "error", err)
 
@@ -103,7 +103,7 @@ func (s *service) Login(ctx context.Context, login string, password string) (str
 		return "", ErrInvalidPair
 	}
 
-	token, err := s.issueToken()
+	token, err := s.issueToken(id)
 	if err != nil {
 		s.logger.Errorw("failed to issue token", "login", login, "error", err)
 
@@ -113,9 +113,12 @@ func (s *service) Login(ctx context.Context, login string, password string) (str
 	return token, nil
 }
 
-func (s *service) CheckToken(_ context.Context, token string) error {
-	parsedToken, err := jwt.Parse(
+func (s *service) ParseToken(_ context.Context, token string) (string, error) {
+	claims := new(jwt.RegisteredClaims)
+
+	parsedToken, err := jwt.ParseWithClaims(
 		token,
+		claims,
 		func(t *jwt.Token) (interface{}, error) {
 			method, ok := t.Method.(*jwt.SigningMethodHMAC)
 			if !ok {
@@ -133,14 +136,14 @@ func (s *service) CheckToken(_ context.Context, token string) error {
 	if err != nil {
 		s.logger.Infow("failed to parse token", "error", err)
 
-		return ErrInvalidToken
+		return "", ErrInvalidToken
 	}
 
 	if !parsedToken.Valid {
-		return ErrInvalidToken
+		return "", ErrInvalidToken
 	}
 
-	return nil
+	return claims.Subject, nil
 }
 
 func (s *service) hashPassword(password string) string {
@@ -151,10 +154,11 @@ func (s *service) hashPassword(password string) string {
 	return hex.EncodeToString(hashBytes[:])
 }
 
-func (s *service) issueToken() (string, error) {
+func (s *service) issueToken(userId string) (string, error) {
 	now := time.Now()
 
 	token := jwt.NewWithClaims(signingMethod, jwt.RegisteredClaims{
+		Subject:   userId,
 		IssuedAt:  jwt.NewNumericDate(now),
 		ExpiresAt: jwt.NewNumericDate(now.Add(s.options.TokenExpirationPeriod)),
 	})

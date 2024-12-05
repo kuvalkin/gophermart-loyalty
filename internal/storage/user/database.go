@@ -38,23 +38,24 @@ func (d *dbRepo) Add(ctx context.Context, login string, passwordHash string) err
 	return nil
 }
 
-func (d *dbRepo) GetPasswordHash(ctx context.Context, login string) (string, bool, error) {
+func (d *dbRepo) Find(ctx context.Context, login string) (string, string, bool, error) {
 	localCtx, cancel := context.WithTimeout(ctx, d.timeout)
 	defer cancel()
 
-	row := d.db.QueryRowContext(localCtx, "SELECT password_hash FROM users WHERE login = $1", login)
+	row := d.db.QueryRowContext(localCtx, "SELECT id, password_hash FROM users WHERE login = $1", login)
 
+	var userId string
 	var hash string
-	err := row.Scan(&hash)
+	err := row.Scan(&userId, &hash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", false, nil
+			return "", "", false, nil
 		}
 
-		return "", false, fmt.Errorf("query error: %w", err)
+		return "", "", false, fmt.Errorf("query error: %w", err)
 	}
 
-	return hash, true, nil
+	return userId, hash, true, nil
 }
 
 func isUniqueViolation(err error) bool {
