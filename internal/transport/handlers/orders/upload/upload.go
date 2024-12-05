@@ -1,0 +1,47 @@
+package upload
+
+import (
+	"errors"
+	"strings"
+
+	"github.com/gofiber/fiber/v2"
+
+	"github.com/kuvalkin/gophermart-loyalty/internal/service/order"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
+)
+
+type Handler struct {
+	orderService order.Service
+}
+
+func New(orderService order.Service) *Handler {
+	return &Handler{
+		orderService: orderService,
+	}
+}
+
+func (h *Handler) Handle(ctx *fiber.Ctx) error {
+	userIdRaw := ctx.Locals("userid")
+	userId, ok := userIdRaw.(string)
+	if !ok {
+		log.Logger().Fatalw("no user id", "userIdRaw", userIdRaw)
+		panic("no use id")
+	}
+
+	body := strings.TrimSpace(string(ctx.Body()))
+
+	err := h.orderService.Upload(ctx.Context(), userId, body)
+	if errors.Is(err, order.ErrAlreadyUploaded) {
+		return ctx.SendStatus(fiber.StatusOK)
+	} else if errors.Is(err, order.ErrUploadedByAnotherUser) {
+		return ctx.SendStatus(fiber.StatusConflict)
+	} else if errors.Is(err, order.ErrInvalidNumber) {
+		return ctx.SendStatus(fiber.StatusUnprocessableEntity)
+	} else if err != nil {
+		return ctx.SendStatus(fiber.StatusInternalServerError)
+	}
+
+	//todo when to return 400?
+
+	return ctx.SendStatus(fiber.StatusAccepted)
+}

@@ -37,6 +37,7 @@ func New(userService user.Service) func(ctx *fiber.Ctx) error {
 			return ctx.SendStatus(fiber.StatusUnauthorized)
 		}
 
+		//todo set locals userid from token
 		err := userService.CheckToken(ctx.Context(), token)
 		if err != nil {
 			authRequestLogger.Debugw("token check failed", "error", err)
