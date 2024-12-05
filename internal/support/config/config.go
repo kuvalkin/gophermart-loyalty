@@ -30,6 +30,8 @@ func Resolve() (*Config, error) {
 		DatabaseDSN:          "",
 		AccrualSystemAddress: "",
 		// hardcoded for now
+		AccrualMaxRetries:     10,
+		AccrualMaxRetryPeriod: 5 * time.Minute,
 		DatabaseTimeout:       5 * time.Second,
 		MinPasswordLength:     12,
 		TokenExpirationPeriod: time.Hour,
