@@ -10,12 +10,12 @@ import (
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
 )
 
-func NewService(repo Repository, poller AccrualPoller) (Service, error) {
+func NewService(repo Repository, poller AccrualPoller) Service {
 	return &service{
 		repo:   repo,
 		poller: poller,
 		logger: log.Logger().Named("orderService"),
-	}, nil
+	}
 }
 
 type service struct {
@@ -56,9 +56,24 @@ func (s *service) Upload(ctx context.Context, userId string, number string) erro
 		return ErrInternal
 	}
 
+	err = s.AddToProcessQueue(number, StatusNew)
+	if err != nil {
+		localLogger.Errorw("can't add to process queue", "error", err)
+
+		return ErrInternal
+	}
+
+	return nil
+}
+
+func (s *service) AddToProcessQueue(number string, currentStatus Status) error {
+	if currentStatus == StatusProcessed || currentStatus == StatusInvalid {
+		return ErrAlreadyProcessed
+	}
+
 	resultChan, err := s.poller.Enqueue(number, StatusNew)
 	if err != nil {
-		localLogger.Errorw("can't add to queue", "error", err)
+		s.logger.Errorw("can't add to queue", "error", err, "number", number, "currentStatus", currentStatus)
 
 		return ErrInternal
 	}

@@ -23,10 +23,12 @@ type Order struct {
 var ErrAlreadyUploaded = errors.New("order already uploaded")
 var ErrUploadedByAnotherUser = errors.New("uploaded by another user")
 var ErrInvalidNumber = errors.New("invalid order number")
+var ErrAlreadyProcessed = errors.New("order already processed")
 var ErrInternal = errors.New("internal error")
 
 type Service interface {
 	Upload(ctx context.Context, userId string, number string) error
+	AddToProcessQueue(number string, currentStatus Status) error
 	List(ctx context.Context, userId string) ([]*Order, error)
 }
 

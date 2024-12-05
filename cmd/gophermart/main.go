@@ -153,12 +153,26 @@ func initOrderService(conf *config.Config, db *sql.DB) (order.Service, error) {
 		return nil, fmt.Errorf("failed to initialize poller for order service: %w", err)
 	}
 
-	//todo enqueue existing not processed orders
-
-	return order.NewService(
+	service := order.NewService(
 		orderStorage.NewDatabaseRepository(db, conf.DatabaseTimeout),
 		poller,
 	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), conf.DatabaseTimeout)
+	defer cancel()
+	unprocessed, err := orderStorage.GetUnprocessedOrders(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve unprocessed orders: %w", err)
+	}
+
+	for _, uo := range unprocessed {
+		err = service.AddToProcessQueue(uo.Number, uo.CurrentStatus)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add unprocessed order to queue: %w", err)
+		}
+	}
+
+	return service, nil
 }
 
 func listenAndServe(serv *transport.Server) {
