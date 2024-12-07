@@ -26,6 +26,7 @@ type poller struct {
 	limiter          *rate.Limiter
 	tuningMutex      *sync.Mutex
 	client           *resty.Client
+	timeout          time.Duration
 	maxAttempts      int
 	maxRetryWaitTime time.Duration
 	taskList         *taskList
@@ -59,9 +60,10 @@ func NewPoller(accrualSystemAddress string, timeout time.Duration, maxRetries in
 
 	return &poller{
 		pool:             p,
-		limiter:          rate.NewLimiter(rate.Inf, 1),
+		limiter:          rate.NewLimiter(rate.Inf, 1), // no limit by default
 		tuningMutex:      &sync.Mutex{},
 		client:           resty.New().SetTimeout(timeout).SetBaseURL(accrualSystemAddress),
+		timeout:          timeout,
 		maxAttempts:      maxRetries,
 		maxRetryWaitTime: maxRetryWaitTime,
 		taskList: &taskList{
@@ -122,6 +124,24 @@ func (p *poller) enqueue(task *task) error {
 }
 
 func (p *poller) processTask(task *task) {
+	// we need an actual deadline for wait, because if we start waiting while requests are blocked, we will wait forever
+	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
+	defer cancel()
+
+	p.logger.Debugw("waiting to make a request", "number", task.number)
+	err := p.limiter.Wait(ctx)
+	if err != nil {
+		if strings.Contains(err.Error(), "would exceed context deadline") || ctx.Err() != nil {
+			p.logger.Debugw("too much to wait to make a request, try this task later", "number", task.number, "error", err)
+		} else {
+			p.logger.Errorw("rate limiter wait error", "number", task.number, "error", err)
+		}
+
+		p.retryLaterOrCloseTask(task)
+		return
+	}
+
+	// task attempts should not be largely affected by rate limiting
 	task.attempts++
 
 	receivedStatus, amount, err := p.makeRequest(task.number)
@@ -138,27 +158,15 @@ func (p *poller) processTask(task *task) {
 		close(task.resultChan)
 		p.taskList.deleteSingle(task.number)
 	} else {
-		err := p.maybeRetryLater(task)
-
-		if err != nil {
-			task.resultChan <- order.AccrualResult{
-				Err: err,
-			}
-
-			close(task.resultChan)
-			p.taskList.deleteSingle(task.number)
-		}
+		p.retryLaterOrCloseTask(task)
 	}
 }
 
 func (p *poller) makeRequest(number string) (accrualStatus, int64, error) {
-	err := p.limiter.Wait(context.Background())
-	if err != nil {
-		return "", 0, fmt.Errorf("wait limiter failed: %w", err)
-	}
-
+	wrapped := p.logger.WithLazy("number", number)
 	payload := new(accrualResponse)
 
+	wrapped.Debug("making request")
 	response, err := p.client.R().
 		SetPathParam("number", number).
 		SetResult(payload).
@@ -167,6 +175,8 @@ func (p *poller) makeRequest(number string) (accrualStatus, int64, error) {
 	if err != nil {
 		return "", 0, fmt.Errorf("cant make p request: %w", err)
 	}
+
+	wrapped.Debug("got response")
 
 	if response.StatusCode() == http.StatusTooManyRequests {
 		p.tuneRateLimiting(response)
@@ -195,14 +205,19 @@ func (p *poller) tuneRateLimiting(response *resty.Response) {
 	defer p.tuningMutex.Unlock()
 
 	retryAfter, numberOfRequests, period := p.parseRateLimitedResponse(response)
+	p.logger.Infow("tuning rate limiting", "retryAfter", retryAfter, "numberOfRequests", numberOfRequests, "period", period)
 
 	// block new requests until rate limitation has passed
-	p.limiter.SetLimit(0)
+	// https://github.com/golang/go/issues/18763
+	p.limiter.SetLimit(math.SmallestNonzeroFloat64)
+	p.logger.Infow("all new requests are blocked temporary", "whenSeconds", retryAfter)
+
 	// tune limit according to response
-	p.limiter.SetLimitAt(
-		time.Now().Add(time.Duration(retryAfter)*time.Second),
-		rate.Limit(numberOfRequests/period),
-	)
+	time.AfterFunc(time.Duration(retryAfter)*time.Second, func() {
+		p.logger.Info("new rate limited installed")
+		p.limiter.SetLimit(rate.Limit(numberOfRequests / period))
+	})
+
 	// limit number of goroutines
 	p.pool.Tune(numberOfRequests)
 }
@@ -220,23 +235,23 @@ func (p *poller) parseRateLimitedResponse(response *resty.Response) (int, int, i
 	defaultPeriod := 60
 
 	body := strings.TrimSpace(response.String())
-	matches := regexp.MustCompile(`^No more than (\d+) requests per (second|minute|hour) allowed$`).FindAllString(body, 2)
-	if len(matches) != 2 {
-		p.logger.Errorw("cant parse rate limiting response, using default values", "body", body)
+	matches := regexp.MustCompile(`^No more than (\d+) requests per (second|minute|hour) allowed$`).FindStringSubmatch(body)
+	if len(matches) != 3 {
+		p.logger.Errorw("cant parse rate limiting response, using default values", "body", body, "matches", matches)
 
 		return retryAfterSeconds, defaultNumberOfRequests, defaultPeriod
 	}
 
-	numberOfRequests, err := strconv.Atoi(matches[0])
+	numberOfRequests, err := strconv.Atoi(matches[1])
 	if err != nil {
-		p.logger.Errorw("cant parse number of requests, using default value", "number", matches[0])
+		p.logger.Errorw("cant parse number of requests, using default value", "number", matches[1])
 
 		numberOfRequests = defaultNumberOfRequests
 	}
 
 	period := defaultPeriod
 
-	switch matches[1] {
+	switch matches[2] {
 	case "second":
 		period = 1
 	case "minute":
@@ -244,10 +259,23 @@ func (p *poller) parseRateLimitedResponse(response *resty.Response) (int, int, i
 	case "hour":
 		period = 60 * 60
 	default:
-		p.logger.Errorw("cant parse rate limiting period, using default values", "period", matches[1])
+		p.logger.Errorw("cant parse rate limiting period, using default values", "period", matches[2])
 	}
 
 	return numberOfRequests, period, numberOfRequests
+}
+
+func (p *poller) retryLaterOrCloseTask(task *task) {
+	err := p.maybeRetryLater(task)
+
+	if err != nil {
+		task.resultChan <- order.AccrualResult{
+			Err: err,
+		}
+
+		close(task.resultChan)
+		p.taskList.deleteSingle(task.number)
+	}
 }
 
 func (p *poller) maybeRetryLater(task *task) error {

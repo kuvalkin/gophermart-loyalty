@@ -3,6 +3,7 @@ package accrual
 import (
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -25,18 +26,18 @@ func TestPoller(t *testing.T) {
 	t.Run("order is never registered", testPollerOrderIsNeverRegistered)
 	t.Run("order status is never changed", testPollerOrderStatusIsNeverChanged)
 	t.Run("order already enqueued", testPollerOrderAlreadyEnqueued)
-	//todo rate limiting
+	t.Run("rate limiting", testPollerRateLimiting)
 }
 
 func testPollerSuccess(t *testing.T) {
 	ctx, cancel := test.Context(t)
 	defer cancel()
 
-	endpointCallCount := 0
+	endpointCallCount := new(atomic.Int32)
 	server := httptest.NewServer(adaptor.FiberHandler(func(ctx *fiber.Ctx) error {
-		endpointCallCount++
+		endpointCallCount.Add(1)
 
-		switch endpointCallCount {
+		switch endpointCallCount.Load() {
 		case 1:
 			return ctx.JSON(accrualResponse{
 				Status: string(statusRegistered),
@@ -316,6 +317,71 @@ func testPollerOrderAlreadyEnqueued(t *testing.T) {
 	_, err = p.Enqueue(number, order.StatusProcessing)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "already enqueued")
+}
+
+func testPollerRateLimiting(t *testing.T) {
+	ctx, cancel := test.Context(t)
+	defer cancel()
+
+	isLimited := new(atomic.Bool)
+	isLimited.Store(true)
+	time.AfterFunc(time.Second, func() {
+		isLimited.Store(false)
+	})
+
+	limitedRequestCount := new(atomic.Int32)
+	defer func() {
+		// First request to get a rate limitation answer.
+		// Second request - because rate limiting is implemented as token bucket, and we adjust it refilling rate.
+		// After the first request the bucket is almost certain to have a token
+		if limitedRequestCount.Load() > 2 {
+			log.Logger().Errorw("it seems that poller was not rate limited")
+			t.FailNow()
+		}
+	}()
+
+	server := httptest.NewServer(adaptor.FiberHandler(func(ctx *fiber.Ctx) error {
+		if isLimited.Load() {
+			limitedRequestCount.Add(1)
+
+			log.Logger().Info("access to rate limited api")
+
+			ctx.Set("Retry-After", "1")
+
+			ctx.Status(fiber.StatusTooManyRequests)
+
+			return ctx.SendString("No more than 1 requests per second allowed")
+		}
+
+		return ctx.JSON(accrualResponse{
+			Status:  string(statusProcessed),
+			Accrual: 0,
+		})
+	}))
+	defer server.Close()
+
+	p := newTestPoller(t, server)
+	defer p.Close()
+
+	resultChan, err := p.Enqueue(test.NewOrderNumber(), order.StatusProcessing)
+	require.NoError(t, err)
+
+	for {
+		select {
+		case result, ok := <-resultChan:
+			if !ok {
+				log.Logger().Debug("result chan closed")
+
+				return
+			}
+
+			require.NoError(t, result.Err)
+
+		case <-ctx.Done():
+			log.Logger().Errorw("ctx done", "error", ctx.Err())
+			t.FailNow()
+		}
+	}
 }
 
 func newTestPoller(t *testing.T, server *httptest.Server) order.AccrualPoller {
