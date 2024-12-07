@@ -2,6 +2,7 @@ package accrual
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -124,30 +125,29 @@ func (p *poller) processTask(task *task) {
 	task.attempts++
 
 	receivedStatus, amount, err := p.makeRequest(task.number)
-	if err != nil {
-		if task.attempts > p.maxAttempts {
-			task.resultChan <- order.AccrualResult{
-				Err: fmt.Errorf("max attempts exceeded"),
-			}
 
-			close(task.resultChan)
-
-			p.taskList.deleteSingle(task.number)
-
-			return
-		}
-
-		p.retryLater(task)
-
-		return
+	var isCompleted bool
+	if err == nil {
+		isCompleted = p.notifyAboutChanges(task, receivedStatus, amount)
+	} else {
+		p.logger.Errorw("error making request to accrual service", "number", task.number, "error", err)
+		isCompleted = false
 	}
 
-	isCompleted := p.notifyAboutChanges(task, receivedStatus, amount)
 	if isCompleted {
 		close(task.resultChan)
 		p.taskList.deleteSingle(task.number)
 	} else {
-		p.retryLater(task)
+		err := p.maybeRetryLater(task)
+
+		if err != nil {
+			task.resultChan <- order.AccrualResult{
+				Err: err,
+			}
+
+			close(task.resultChan)
+			p.taskList.deleteSingle(task.number)
+		}
 	}
 }
 
@@ -250,7 +250,11 @@ func (p *poller) parseRateLimitedResponse(response *resty.Response) (int, int, i
 	return numberOfRequests, period, numberOfRequests
 }
 
-func (p *poller) retryLater(task *task) {
+func (p *poller) maybeRetryLater(task *task) error {
+	if task.attempts > p.maxAttempts {
+		return errors.New("max attempts exceeded")
+	}
+
 	after := p.calcRetryPeriod(task.attempts)
 
 	time.AfterFunc(after, func() {
@@ -259,6 +263,8 @@ func (p *poller) retryLater(task *task) {
 			p.logger.Errorw("cant submit to task to pool", "number", task.number, "error", err)
 		}
 	})
+
+	return nil
 }
 
 func (p *poller) calcRetryPeriod(attempt int) time.Duration {
@@ -275,6 +281,14 @@ func (p *poller) notifyAboutChanges(task *task, receivedStatus accrualStatus, re
 		task.resultChan <- order.AccrualResult{
 			Status:  orderStatus,
 			Accrual: &receivedAccrual,
+		}
+
+		return true
+	}
+
+	if orderStatus.IsFinal() {
+		task.resultChan <- order.AccrualResult{
+			Status: orderStatus,
 		}
 
 		return true

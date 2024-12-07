@@ -1,6 +1,7 @@
 package accrual
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -18,19 +19,190 @@ import (
 func TestPoller(t *testing.T) {
 	log.InitTestLogger(t)
 
+	t.Run("success", testPollerSuccess)
+	t.Run("service says that order invalid", testPollerServiceSaysOrderInvalid)
+	t.Run("service not responding", testPollerServiceNotResponding)
+	t.Run("order is never registered", testPollerOrderIsNeverRegistered)
+	t.Run("order status is never changed", testPollerOrderStatusIsNeverChanged)
+}
+
+func testPollerSuccess(t *testing.T) {
 	ctx, cancel := test.Context(t)
 	defer cancel()
 
+	endpointCallCount := 0
 	server := httptest.NewServer(adaptor.FiberHandler(func(ctx *fiber.Ctx) error {
-		return ctx.JSON(accrualResponse{
-			Status:  string(statusProcessed),
-			Accrual: 100.93,
-		})
+		endpointCallCount++
+
+		switch endpointCallCount {
+		case 1:
+			return ctx.JSON(accrualResponse{
+				Status: string(statusRegistered),
+			})
+		case 2:
+			return ctx.JSON(accrualResponse{
+				Status: string(statusProcessing),
+			})
+		case 3:
+			return ctx.JSON(accrualResponse{
+				Status: string(statusProcessing),
+			})
+		default:
+			return ctx.JSON(accrualResponse{
+				Status:  string(statusProcessed),
+				Accrual: 100.93,
+			})
+		}
 	}))
 	defer server.Close()
 
-	p, err := NewPoller(server.URL, 50*time.Millisecond, 1, time.Millisecond)
+	p := newTestPoller(t, server)
+	defer p.Close()
+
+	resultChan, err := p.Enqueue(test.NewOrderNumber(), order.StatusNew)
 	require.NoError(t, err)
+
+	expectedResultsSequence := map[int]order.AccrualResult{
+		// poller notifies only about *changes*
+		1: {
+			Status: order.StatusProcessing,
+		},
+		2: {
+			Status:  order.StatusProcessed,
+			Accrual: test.Int64Pointer(10093),
+		},
+	}
+
+	resultCount := 0
+
+	for {
+		select {
+		case result, ok := <-resultChan:
+			if !ok {
+				log.Logger().Debug("result chan closed")
+
+				return
+			}
+
+			resultCount++
+
+			expected, ok := expectedResultsSequence[resultCount]
+			require.True(t, ok)
+
+			log.Logger().Debugw("test case", "count", resultCount, "expected", expected)
+
+			assert.NoError(t, result.Err)
+			assert.Equal(t, expected.Status, result.Status)
+
+			if expected.Accrual == nil {
+				assert.Nil(t, result.Accrual)
+			} else {
+				require.NotNil(t, result.Accrual)
+				assert.Equal(t, *expected.Accrual, *result.Accrual)
+			}
+		case <-ctx.Done():
+			log.Logger().Errorw("ctx done", "error", ctx.Err())
+			t.FailNow()
+		}
+	}
+}
+
+func testPollerServiceSaysOrderInvalid(t *testing.T) {
+	ctx, cancel := test.Context(t)
+	defer cancel()
+
+	endpointCallCount := 0
+	server := httptest.NewServer(adaptor.FiberHandler(func(ctx *fiber.Ctx) error {
+		endpointCallCount++
+
+		switch endpointCallCount {
+		case 1:
+			return ctx.JSON(accrualResponse{
+				Status: string(statusRegistered),
+			})
+		case 2:
+			return ctx.JSON(accrualResponse{
+				Status: string(statusProcessing),
+			})
+		case 3:
+			return ctx.JSON(accrualResponse{
+				Status: string(statusProcessing),
+			})
+		default:
+			return ctx.JSON(accrualResponse{
+				Status: string(statusInvalid),
+			})
+		}
+	}))
+	defer server.Close()
+
+	p := newTestPoller(t, server)
+	defer p.Close()
+
+	resultChan, err := p.Enqueue(test.NewOrderNumber(), order.StatusNew)
+	require.NoError(t, err)
+
+	expectedResultsSequence := map[int]order.AccrualResult{
+		// poller notifies only about *changes*
+		1: {
+			Status: order.StatusProcessing,
+		},
+		2: {
+			Status: order.StatusInvalid,
+		},
+	}
+
+	resultCount := 0
+
+	for {
+		select {
+		case result, ok := <-resultChan:
+			if !ok {
+				log.Logger().Debug("result chan closed")
+
+				return
+			}
+
+			resultCount++
+
+			expected, ok := expectedResultsSequence[resultCount]
+			require.True(t, ok)
+
+			log.Logger().Debugw("test case", "count", resultCount, "expected", expected)
+
+			assert.NoError(t, result.Err)
+			assert.Equal(t, expected.Status, result.Status)
+
+			if expected.Accrual == nil {
+				assert.Nil(t, result.Accrual)
+			} else {
+				require.NotNil(t, result.Accrual)
+				assert.Equal(t, *expected.Accrual, *result.Accrual)
+			}
+		case <-ctx.Done():
+			log.Logger().Errorw("ctx done", "error", ctx.Err())
+			t.FailNow()
+		}
+	}
+}
+
+func testPollerServiceNotResponding(t *testing.T) {
+	ctx, cancel := test.Context(t)
+	defer cancel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		// never respond until request is aborted or test is done
+		select {
+		case <-ctx.Done():
+			return
+		case <-r.Context().Done():
+			return
+		}
+	}))
+	defer server.Close()
+
+	p := newTestPoller(t, server)
+	defer p.Close()
 
 	resultChan, err := p.Enqueue(test.NewOrderNumber(), order.StatusNew)
 	require.NoError(t, err)
@@ -44,13 +216,87 @@ func TestPoller(t *testing.T) {
 				return
 			}
 
-			assert.NoError(t, result.Err)
-			assert.Equal(t, order.StatusProcessed, result.Status)
-			assert.NotNil(t, result.Accrual)
-			assert.Equal(t, int64(10093), *result.Accrual)
+			require.Error(t, result.Err)
+			require.Equal(t, "max attempts exceeded", result.Err.Error())
 		case <-ctx.Done():
-			log.Logger().Errorw("ctx done", err, ctx.Err())
+			log.Logger().Errorw("ctx done", "error", ctx.Err())
 			t.FailNow()
 		}
 	}
+}
+
+func testPollerOrderIsNeverRegistered(t *testing.T) {
+	ctx, cancel := test.Context(t)
+	defer cancel()
+
+	server := httptest.NewServer(adaptor.FiberHandler(func(ctx *fiber.Ctx) error {
+		// pretend that this order is unknown on every request
+		return ctx.SendStatus(fiber.StatusNoContent)
+	}))
+	defer server.Close()
+
+	p := newTestPoller(t, server)
+	defer p.Close()
+
+	resultChan, err := p.Enqueue(test.NewOrderNumber(), order.StatusNew)
+	require.NoError(t, err)
+
+	for {
+		select {
+		case result, ok := <-resultChan:
+			if !ok {
+				log.Logger().Debug("result chan closed")
+
+				return
+			}
+
+			require.Error(t, result.Err)
+			require.Equal(t, "max attempts exceeded", result.Err.Error())
+		case <-ctx.Done():
+			log.Logger().Errorw("ctx done", "error", ctx.Err())
+			t.FailNow()
+		}
+	}
+}
+
+func testPollerOrderStatusIsNeverChanged(t *testing.T) {
+	ctx, cancel := test.Context(t)
+	defer cancel()
+
+	server := httptest.NewServer(adaptor.FiberHandler(func(ctx *fiber.Ctx) error {
+		return ctx.JSON(accrualResponse{
+			Status: string(statusProcessing),
+		})
+	}))
+	defer server.Close()
+
+	p := newTestPoller(t, server)
+	defer p.Close()
+
+	resultChan, err := p.Enqueue(test.NewOrderNumber(), order.StatusProcessing)
+	require.NoError(t, err)
+
+	for {
+		select {
+		case result, ok := <-resultChan:
+			if !ok {
+				log.Logger().Debug("result chan closed")
+
+				return
+			}
+
+			require.Error(t, result.Err)
+			require.Equal(t, "max attempts exceeded", result.Err.Error())
+		case <-ctx.Done():
+			log.Logger().Errorw("ctx done", "error", ctx.Err())
+			t.FailNow()
+		}
+	}
+}
+
+func newTestPoller(t *testing.T, server *httptest.Server) order.AccrualPoller {
+	p, err := NewPoller(server.URL, 50*time.Millisecond, 5, time.Millisecond)
+	require.NoError(t, err)
+
+	return p
 }

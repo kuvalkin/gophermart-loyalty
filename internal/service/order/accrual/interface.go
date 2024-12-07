@@ -35,13 +35,13 @@ const statusProcessed = accrualStatus("PROCESSED")
 
 func (s accrualStatus) orderStatus() order.Status {
 	switch s {
-	case "REGISTERED":
+	case statusRegistered:
 		return order.StatusNew
-	case "INVALID":
+	case statusInvalid:
 		return order.StatusInvalid
-	case "PROCESSING":
+	case statusProcessing:
 		return order.StatusProcessing
-	case "PROCESSED":
+	case statusProcessed:
 		return order.StatusProcessed
 	default:
 		// when accrual returned 204 or something

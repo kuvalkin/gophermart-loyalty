@@ -9,6 +9,14 @@ import (
 
 type Status string
 
+func (s Status) IsFinal() bool {
+	return s == StatusProcessed || s == StatusInvalid
+}
+
+func (s Status) String() string {
+	return string(s)
+}
+
 const StatusNew = Status("NEW")
 const StatusProcessing = Status("PROCESSING")
 const StatusInvalid = Status("INVALID")

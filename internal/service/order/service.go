@@ -68,7 +68,7 @@ func (s *service) Upload(ctx context.Context, userId string, number string) erro
 }
 
 func (s *service) AddToProcessQueue(number string, currentStatus Status) error {
-	if currentStatus == StatusProcessed || currentStatus == StatusInvalid {
+	if currentStatus.IsFinal() {
 		return ErrAlreadyProcessed
 	}
 

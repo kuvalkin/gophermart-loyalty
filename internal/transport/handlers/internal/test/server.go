@@ -77,7 +77,6 @@ func userService(t *testing.T) user.Service {
 }
 
 func orderService() order.Service {
-	// todo unit test on poller/order integration
 	return order.NewService(orderStorage.NewInMemoryRepository(), newDummyPoller())
 }
 
