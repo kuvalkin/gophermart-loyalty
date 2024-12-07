@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
+	test2 "github.com/kuvalkin/gophermart-loyalty/internal/test"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/internal/test"
 )
 
@@ -33,7 +34,7 @@ func testAuth(t *testing.T) {
 	t.Run("request without token", func(t *testing.T) {
 		response, err := client.R().
 			SetHeader("Content-Type", "text/plain").
-			SetBody(test.NewOrderNumber()).
+			SetBody(test2.NewOrderNumber()).
 			Post(orders)
 
 		require.NoError(t, err)
@@ -44,7 +45,7 @@ func testAuth(t *testing.T) {
 		response, err := client.R().
 			SetAuthToken("hi").
 			SetHeader("Content-Type", "text/plain").
-			SetBody(test.NewOrderNumber()).
+			SetBody(test2.NewOrderNumber()).
 			Post(orders)
 
 		require.NoError(t, err)
@@ -61,7 +62,7 @@ func testUploadValidation(t *testing.T) {
 			Name:        "success",
 			Token:       token,
 			ContentType: "text/plain",
-			Body:        test.NewOrderNumber(),
+			Body:        test2.NewOrderNumber(),
 			Want: test.Want{
 				Status: http.StatusAccepted,
 			},
@@ -71,7 +72,7 @@ func testUploadValidation(t *testing.T) {
 			Token:       token,
 			ContentType: "application/json",
 			Body: test.JSON(t, map[string]string{
-				"number": test.NewOrderNumber(),
+				"number": test2.NewOrderNumber(),
 			}),
 			Want: test.Want{
 				Status: http.StatusBadRequest,
@@ -99,7 +100,7 @@ func testUploadFlow(t *testing.T) {
 
 	client := resty.New().SetBaseURL(testServer.URL)
 
-	number := test.NewOrderNumber()
+	number := test2.NewOrderNumber()
 
 	t.Run("upload new order", func(t *testing.T) {
 		response, err := client.R().
@@ -138,7 +139,7 @@ func testUploadFlow(t *testing.T) {
 		response, err := client.R().
 			SetHeader("Content-Type", "text/plain").
 			SetAuthToken(token2).
-			SetBody(test.NewOrderNumber()).
+			SetBody(test2.NewOrderNumber()).
 			Post(orders)
 
 		require.NoError(t, err)

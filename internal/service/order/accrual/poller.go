@@ -63,8 +63,10 @@ func NewPoller(accrualSystemAddress string, timeout time.Duration, maxRetries in
 		client:           resty.New().SetTimeout(timeout).SetBaseURL(accrualSystemAddress),
 		maxAttempts:      maxRetries,
 		maxRetryWaitTime: maxRetryWaitTime,
-		taskList:         &taskList{},
-		logger:           log.Logger().Named("accrualPoller"),
+		taskList: &taskList{
+			tasks: make(map[string]*task),
+		},
+		logger: log.Logger().Named("accrualPoller"),
 	}, nil
 }
 
@@ -121,7 +123,7 @@ func (p *poller) enqueue(task *task) error {
 func (p *poller) processTask(task *task) {
 	task.attempts++
 
-	status, amount, err := p.makeRequest(task.number)
+	receivedStatus, amount, err := p.makeRequest(task.number)
 	if err != nil {
 		if task.attempts > p.maxAttempts {
 			task.resultChan <- order.AccrualResult{
@@ -140,7 +142,7 @@ func (p *poller) processTask(task *task) {
 		return
 	}
 
-	isCompleted := p.notifyAboutChanges(task, status, amount)
+	isCompleted := p.notifyAboutChanges(task, receivedStatus, amount)
 	if isCompleted {
 		close(task.resultChan)
 		p.taskList.deleteSingle(task.number)
@@ -149,15 +151,10 @@ func (p *poller) processTask(task *task) {
 	}
 }
 
-func (p *poller) makeRequest(number string) (string, int64, error) {
+func (p *poller) makeRequest(number string) (accrualStatus, int64, error) {
 	err := p.limiter.Wait(context.Background())
 	if err != nil {
 		return "", 0, fmt.Errorf("wait limiter failed: %w", err)
-	}
-
-	type accrualResponse struct {
-		Status  string  `json:"status"`
-		Accrual float64 `json:"accrual"`
 	}
 
 	payload := new(accrualResponse)
@@ -185,7 +182,12 @@ func (p *poller) makeRequest(number string) (string, int64, error) {
 		return "", 0, fmt.Errorf("unexpected status code: %d", response.StatusCode())
 	}
 
-	return payload.Status, int64(payload.Accrual * 100), nil
+	s, err := statusFromString(payload.Status)
+	if err != nil {
+		return "", 0, fmt.Errorf("cant parse status from response: %w", err)
+	}
+
+	return s, int64(payload.Accrual * 100), nil
 }
 
 func (p *poller) tuneRateLimiting(response *resty.Response) {
@@ -248,22 +250,6 @@ func (p *poller) parseRateLimitedResponse(response *resty.Response) (int, int, i
 	return numberOfRequests, period, numberOfRequests
 }
 
-func (p *poller) orderStatus(accrualStatus string) order.Status {
-	switch accrualStatus {
-	case "REGISTERED":
-		return order.StatusNew
-	case "INVALID":
-		return order.StatusInvalid
-	case "PROCESSING":
-		return order.StatusProcessing
-	case "PROCESSED":
-		return order.StatusProcessed
-	default:
-		// when accrual returned 204 or something
-		return order.StatusNew
-	}
-}
-
 func (p *poller) retryLater(task *task) {
 	after := p.calcRetryPeriod(task.attempts)
 
@@ -282,8 +268,8 @@ func (p *poller) calcRetryPeriod(attempt int) time.Duration {
 	return time.Duration(interval)
 }
 
-func (p *poller) notifyAboutChanges(task *task, receivedStatus string, receivedAccrual int64) bool {
-	orderStatus := p.orderStatus(receivedStatus)
+func (p *poller) notifyAboutChanges(task *task, receivedStatus accrualStatus, receivedAccrual int64) bool {
+	orderStatus := receivedStatus.orderStatus()
 
 	if orderStatus == order.StatusProcessed {
 		task.resultChan <- order.AccrualResult{
