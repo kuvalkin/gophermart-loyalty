@@ -11,7 +11,7 @@ type memoryRepo struct {
 }
 
 type value struct {
-	userId  string
+	userID  string
 	status  order.Status
 	accrual *int64
 }
@@ -22,9 +22,9 @@ func NewInMemoryRepository() order.Repository {
 	}
 }
 
-func (m *memoryRepo) Add(_ context.Context, userId string, number string, status order.Status) error {
+func (m *memoryRepo) Add(_ context.Context, userID string, number string, status order.Status) error {
 	m.storage[number] = &value{
-		userId: userId,
+		userID: userID,
 		status: status,
 	}
 
@@ -51,5 +51,5 @@ func (m *memoryRepo) GetOwner(_ context.Context, number string) (string, bool, e
 		return "", false, nil
 	}
 
-	return value.userId, true, nil
+	return value.userID, true, nil
 }

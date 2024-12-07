@@ -25,8 +25,8 @@ type service struct {
 	logger *zap.SugaredLogger
 }
 
-func (s *service) Upload(ctx context.Context, userId string, number string) error {
-	localLogger := s.logger.WithLazy("userId", userId, "number", number)
+func (s *service) Upload(ctx context.Context, userID string, number string) error {
+	localLogger := s.logger.WithLazy("userID", userID, "number", number)
 
 	err := checkNumber(number)
 	if err != nil {
@@ -35,7 +35,7 @@ func (s *service) Upload(ctx context.Context, userId string, number string) erro
 		return ErrInvalidNumber
 	}
 
-	ownerId, found, err := s.repo.GetOwner(ctx, number)
+	ownerID, found, err := s.repo.GetOwner(ctx, number)
 	if err != nil {
 		localLogger.Errorw("can't get owner", "error", err)
 
@@ -43,14 +43,14 @@ func (s *service) Upload(ctx context.Context, userId string, number string) erro
 	}
 
 	if found {
-		if ownerId == userId {
+		if ownerID == userID {
 			return ErrAlreadyUploaded
 		} else {
 			return ErrUploadedByAnotherUser
 		}
 	}
 
-	err = s.repo.Add(ctx, userId, number, StatusNew)
+	err = s.repo.Add(ctx, userID, number, StatusNew)
 	if err != nil {
 		localLogger.Errorw("can't add new order", "error", err)
 
@@ -114,7 +114,7 @@ func (s *service) listenAccrualResults(resultChan <-chan AccrualResult, number s
 	}
 }
 
-func (s *service) List(ctx context.Context, userId string) ([]*Order, error) {
+func (s *service) List(ctx context.Context, userID string) ([]*Order, error) {
 	//TODO implement me
 	panic("implement me")
 }

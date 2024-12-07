@@ -21,10 +21,10 @@ func New(orderService order.Service) *Handler {
 }
 
 func (h *Handler) Handle(ctx *fiber.Ctx) error {
-	userIdRaw := ctx.Locals("userid")
-	userId, ok := userIdRaw.(string)
+	userIDRaw := ctx.Locals("userid")
+	userID, ok := userIDRaw.(string)
 	if !ok {
-		log.Logger().Fatalw("no user id", "userIdRaw", userIdRaw)
+		log.Logger().Fatalw("no user id", "userIDRaw", userIDRaw)
 		panic("no use id")
 	}
 
@@ -34,7 +34,7 @@ func (h *Handler) Handle(ctx *fiber.Ctx) error {
 
 	body := strings.TrimSpace(string(ctx.Body()))
 
-	err := h.orderService.Upload(ctx.Context(), userId, body)
+	err := h.orderService.Upload(ctx.Context(), userID, body)
 	if errors.Is(err, order.ErrAlreadyUploaded) {
 		return ctx.SendStatus(fiber.StatusOK)
 	} else if errors.Is(err, order.ErrUploadedByAnotherUser) {

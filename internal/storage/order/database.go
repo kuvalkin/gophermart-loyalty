@@ -19,14 +19,14 @@ func NewDatabaseRepository(db *sql.DB, timeout time.Duration) order.Repository {
 	return &dbRepo{db: db, timeout: timeout}
 }
 
-func (d *dbRepo) Add(ctx context.Context, userId string, number string, status order.Status) error {
+func (d *dbRepo) Add(ctx context.Context, userID string, number string, status order.Status) error {
 	localCtx, cancel := context.WithTimeout(ctx, d.timeout)
 	defer cancel()
 
 	_, err := d.db.ExecContext(
 		localCtx,
 		"INSERT INTO orders (user_id, number, status) VALUES ($1, $2, $3)",
-		userId,
+		userID,
 		number,
 		string(status),
 	)
@@ -70,8 +70,8 @@ func (d *dbRepo) GetOwner(ctx context.Context, number string) (string, bool, err
 
 	row := d.db.QueryRowContext(localCtx, "SELECT user_id FROM orders WHERE number = $1", number)
 
-	var userId string
-	err := row.Scan(&userId)
+	var userID string
+	err := row.Scan(&userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", false, nil
@@ -80,5 +80,5 @@ func (d *dbRepo) GetOwner(ctx context.Context, number string) (string, bool, err
 		return "", false, fmt.Errorf("query error: %w", err)
 	}
 
-	return userId, true, nil
+	return userID, true, nil
 }

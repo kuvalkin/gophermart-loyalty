@@ -44,9 +44,9 @@ func (d *dbRepo) Find(ctx context.Context, login string) (string, string, bool, 
 
 	row := d.db.QueryRowContext(localCtx, "SELECT id, password_hash FROM users WHERE login = $1", login)
 
-	var userId string
+	var userID string
 	var hash string
-	err := row.Scan(&userId, &hash)
+	err := row.Scan(&userID, &hash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", "", false, nil
@@ -55,7 +55,7 @@ func (d *dbRepo) Find(ctx context.Context, login string) (string, string, bool, 
 		return "", "", false, fmt.Errorf("query error: %w", err)
 	}
 
-	return userId, hash, true, nil
+	return userID, hash, true, nil
 }
 
 func isUniqueViolation(err error) bool {

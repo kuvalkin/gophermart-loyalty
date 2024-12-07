@@ -36,13 +36,13 @@ var ErrAlreadyProcessed = errors.New("order already processed")
 var ErrInternal = errors.New("internal error")
 
 type Service interface {
-	Upload(ctx context.Context, userId string, number string) error
+	Upload(ctx context.Context, userID string, number string) error
 	AddToProcessQueue(number string, currentStatus Status) error
-	List(ctx context.Context, userId string) ([]*Order, error)
+	List(ctx context.Context, userID string) ([]*Order, error)
 }
 
 type Repository interface {
-	Add(ctx context.Context, userId string, number string, status Status) error
+	Add(ctx context.Context, userID string, number string, status Status) error
 	Update(ctx context.Context, number string, status Status, accrual *int64) error
 	GetOwner(ctx context.Context, number string) (string, bool, error)
 }

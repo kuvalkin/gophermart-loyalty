@@ -154,11 +154,11 @@ func (s *service) hashPassword(password string) string {
 	return hex.EncodeToString(hashBytes[:])
 }
 
-func (s *service) issueToken(userId string) (string, error) {
+func (s *service) issueToken(userID string) (string, error) {
 	now := time.Now()
 
 	token := jwt.NewWithClaims(signingMethod, jwt.RegisteredClaims{
-		Subject:   userId,
+		Subject:   userID,
 		IssuedAt:  jwt.NewNumericDate(now),
 		ExpiresAt: jwt.NewNumericDate(now.Add(s.options.TokenExpirationPeriod)),
 	})

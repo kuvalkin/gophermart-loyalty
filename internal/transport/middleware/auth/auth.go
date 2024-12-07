@@ -37,14 +37,14 @@ func New(userService user.Service) func(ctx *fiber.Ctx) error {
 			return ctx.SendStatus(fiber.StatusUnauthorized)
 		}
 
-		userId, err := userService.ParseToken(ctx.Context(), token)
+		userID, err := userService.ParseToken(ctx.Context(), token)
 		if err != nil {
 			authRequestLogger.Debugw("token check failed", "error", err)
 
 			return ctx.SendStatus(fiber.StatusUnauthorized)
 		}
 
-		ctx.Locals("userid", userId)
+		ctx.Locals("userid", userID)
 
 		return ctx.Next()
 	}
