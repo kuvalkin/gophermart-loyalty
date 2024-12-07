@@ -1,12 +1,15 @@
 package test
 
 import (
-	"context"
 	"encoding/json"
+	"math/rand/v2"
+	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/require"
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/order"
@@ -26,24 +29,37 @@ func NewTestServer(t *testing.T) *httptest.Server {
 	return server.NewTestServer()
 }
 
-const testUserLogin = "my_test_user"
-const testUserPassword = "my_mega_test_password"
+func LoginNewUser(t *testing.T, server *httptest.Server) string {
+	login := rand.Int()
+	// ensure adequate password length
+	password := 12345678910 + rand.Int()
+
+	type payload struct {
+		Token string `json:"token"`
+	}
+	result := new(payload)
+
+	resp, err := resty.New().SetBaseURL(server.URL).R().
+		SetBody(map[string]string{
+			"login":    strconv.Itoa(login),
+			"password": strconv.Itoa(password),
+		}).
+		SetResult(result).
+		Post("/api/user/register")
+
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode())
+	require.NotEmpty(t, result.Token)
+
+	return result.Token
+}
 
 func NewTestServerWithLoggedInUser(t *testing.T) (*httptest.Server, string) {
-	us := userService(t)
+	server := NewTestServer(t)
 
-	err := us.Register(context.Background(), testUserLogin, testUserPassword)
-	require.NoError(t, err)
+	token := LoginNewUser(t, server)
 
-	token, err := us.Login(context.Background(), testUserLogin, testUserPassword)
-	require.NoError(t, err)
-
-	server := transport.NewServer(defaultTestConfig(), &transport.Services{
-		User:  userService(t),
-		Order: orderService(),
-	})
-
-	return server.NewTestServer(), token
+	return server, token
 }
 
 func userService(t *testing.T) user.Service {

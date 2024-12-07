@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 	"errors"
+	"io"
 	"time"
 )
 
@@ -39,6 +40,7 @@ type Repository interface {
 }
 
 type AccrualPoller interface {
+	io.Closer
 	Enqueue(number string, currentStatus Status) (<-chan AccrualResult, error)
 }
 

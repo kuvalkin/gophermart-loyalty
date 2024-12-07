@@ -27,6 +27,7 @@ type poller struct {
 	client           *resty.Client
 	maxAttempts      int
 	maxRetryWaitTime time.Duration
+	taskList         *taskList
 	logger           *zap.SugaredLogger
 }
 
@@ -37,8 +38,19 @@ type task struct {
 	resultChan  chan<- order.AccrualResult
 }
 
-func NewPoller(accrualSystemAddress string, maxRetries int, maxRetryWaitTime time.Duration) (order.AccrualPoller, error) {
-	// todo call Release on shutdown?
+type taskList struct {
+	sync.Mutex
+	tasks map[string]*task
+}
+
+func (t *taskList) deleteSingle(number string) {
+	t.Lock()
+	defer t.Unlock()
+
+	delete(t.tasks, number)
+}
+
+func NewPoller(accrualSystemAddress string, timeout time.Duration, maxRetries int, maxRetryWaitTime time.Duration) (order.AccrualPoller, error) {
 	p, err := pool.NewPool(nil)
 	if err != nil {
 		return nil, fmt.Errorf("cant create a new pool: %w", err)
@@ -48,14 +60,22 @@ func NewPoller(accrualSystemAddress string, maxRetries int, maxRetryWaitTime tim
 		pool:             p,
 		limiter:          rate.NewLimiter(rate.Inf, 1),
 		tuningMutex:      &sync.Mutex{},
-		client:           resty.New().SetBaseURL(accrualSystemAddress),
+		client:           resty.New().SetTimeout(timeout).SetBaseURL(accrualSystemAddress),
 		maxAttempts:      maxRetries,
 		maxRetryWaitTime: maxRetryWaitTime,
+		taskList:         &taskList{},
 		logger:           log.Logger().Named("accrualPoller"),
 	}, nil
 }
 
 func (p *poller) Enqueue(number string, currentStatus order.Status) (<-chan order.AccrualResult, error) {
+	p.taskList.Lock()
+	defer p.taskList.Unlock()
+
+	if _, exists := p.taskList.tasks[number]; exists {
+		return nil, fmt.Errorf("task %s already exists", number)
+	}
+
 	result := make(chan order.AccrualResult, 1)
 
 	task := &task{
@@ -65,12 +85,31 @@ func (p *poller) Enqueue(number string, currentStatus order.Status) (<-chan orde
 		attempts:    0,
 	}
 
+	// enqueue may take a while if all workers are busy
 	err := p.enqueue(task)
 	if err != nil {
 		return nil, fmt.Errorf("cant submit to task to pool: %w", err)
 	}
 
+	p.taskList.tasks[number] = task
+
 	return result, nil
+}
+
+func (p *poller) Close() error {
+	err := p.pool.Close()
+	if err != nil {
+		return fmt.Errorf("cant close the pool: %w", err)
+	}
+
+	p.taskList.Lock()
+	defer p.taskList.Unlock()
+
+	for _, task := range p.taskList.tasks {
+		close(task.resultChan)
+	}
+
+	return nil
 }
 
 func (p *poller) enqueue(task *task) error {
@@ -91,6 +130,8 @@ func (p *poller) processTask(task *task) {
 
 			close(task.resultChan)
 
+			p.taskList.deleteSingle(task.number)
+
 			return
 		}
 
@@ -102,6 +143,7 @@ func (p *poller) processTask(task *task) {
 	isCompleted := p.notifyAboutChanges(task, status, amount)
 	if isCompleted {
 		close(task.resultChan)
+		p.taskList.deleteSingle(task.number)
 	} else {
 		p.retryLater(task)
 	}

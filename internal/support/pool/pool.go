@@ -36,8 +36,10 @@ func NewPool(workers *int) (*Pool, error) {
 	}, nil
 }
 
-func (p *Pool) Release() {
+func (p *Pool) Close() error {
 	p.pool.Release()
+
+	return nil
 }
 
 func (p *Pool) Tune(newMaxWorkers int) {

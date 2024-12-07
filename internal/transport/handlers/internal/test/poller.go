@@ -24,3 +24,7 @@ func (p *dummyPoller) Enqueue(_ string, _ order.Status) (<-chan order.AccrualRes
 
 	return result, nil
 }
+
+func (p *dummyPoller) Close() error {
+	return nil
+}

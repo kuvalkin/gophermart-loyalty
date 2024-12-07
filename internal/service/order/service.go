@@ -2,6 +2,7 @@ package order
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ShiraazMoollatjie/goluhn"
 	"go.uber.org/zap"
@@ -119,5 +120,10 @@ func (s *service) List(ctx context.Context, userId string) ([]*Order, error) {
 }
 
 func checkNumber(number string) error {
+	if number == "" {
+		// goluhn doesnt return error on empty string
+		return errors.New("empty number")
+	}
+
 	return goluhn.Validate(number)
 }

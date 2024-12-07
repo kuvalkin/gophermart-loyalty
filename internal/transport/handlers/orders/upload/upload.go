@@ -28,6 +28,10 @@ func (h *Handler) Handle(ctx *fiber.Ctx) error {
 		panic("no use id")
 	}
 
+	if !strings.HasPrefix(ctx.Get("Content-Type"), "text/plain") {
+		return ctx.SendStatus(fiber.StatusBadRequest)
+	}
+
 	body := strings.TrimSpace(string(ctx.Body()))
 
 	err := h.orderService.Upload(ctx.Context(), userId, body)
@@ -40,8 +44,6 @@ func (h *Handler) Handle(ctx *fiber.Ctx) error {
 	} else if err != nil {
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
-
-	//todo when to return 400?
 
 	return ctx.SendStatus(fiber.StatusAccepted)
 }

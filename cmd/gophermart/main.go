@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	stdLog "log"
 	"os"
 	"os/signal"
@@ -64,11 +65,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	orderService, err := initOrderService(conf, db)
+	orderService, poller, err := initOrderService(conf, db)
 	if err != nil {
 		log.Logger().Fatalw("failed to initialize order service", "error", err)
 		os.Exit(1)
 	}
+
+	defer func() {
+		err := poller.Close()
+		if err != nil {
+			log.Logger().Fatalw("failed to close poller", "error", err)
+		}
+	}()
 
 	serv := transport.NewServer(conf, &transport.Services{
 		User:  userService,
@@ -147,10 +155,10 @@ func initUserService(conf *config.Config, db *sql.DB) (user.Service, error) {
 	)
 }
 
-func initOrderService(conf *config.Config, db *sql.DB) (order.Service, error) {
-	poller, err := accrual.NewPoller(conf.AccrualSystemAddress, conf.AccrualMaxRetries, conf.AccrualMaxRetryPeriod)
+func initOrderService(conf *config.Config, db *sql.DB) (order.Service, io.Closer, error) {
+	poller, err := accrual.NewPoller(conf.AccrualSystemAddress, conf.AccrualTimeout, conf.AccrualMaxRetries, conf.AccrualMaxRetryPeriod)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize poller for order service: %w", err)
+		return nil, nil, fmt.Errorf("failed to initialize poller for order service: %w", err)
 	}
 
 	service := order.NewService(
@@ -162,17 +170,17 @@ func initOrderService(conf *config.Config, db *sql.DB) (order.Service, error) {
 	defer cancel()
 	unprocessed, err := orderStorage.GetUnprocessedOrders(ctx, db)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve unprocessed orders: %w", err)
+		return nil, nil, fmt.Errorf("failed to retrieve unprocessed orders: %w", err)
 	}
 
 	for _, uo := range unprocessed {
 		err = service.AddToProcessQueue(uo.Number, uo.CurrentStatus)
 		if err != nil {
-			return nil, fmt.Errorf("failed to add unprocessed order to queue: %w", err)
+			return nil, nil, fmt.Errorf("failed to add unprocessed order to queue: %w", err)
 		}
 	}
 
-	return service, nil
+	return service, poller, nil
 }
 
 func listenAndServe(serv *transport.Server) {

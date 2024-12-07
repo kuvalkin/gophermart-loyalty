@@ -20,6 +20,7 @@ type Config struct {
 	AccrualSystemAddress  string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 	AccrualMaxRetries     int
 	AccrualMaxRetryPeriod time.Duration
+	AccrualTimeout        time.Duration
 	MinPasswordLength     int
 	TokenExpirationPeriod time.Duration
 }
@@ -32,6 +33,7 @@ func Resolve() (*Config, error) {
 		// hardcoded for now
 		AccrualMaxRetries:     10,
 		AccrualMaxRetryPeriod: 5 * time.Minute,
+		AccrualTimeout:        time.Minute,
 		DatabaseTimeout:       5 * time.Second,
 		MinPasswordLength:     12,
 		TokenExpirationPeriod: time.Hour,
