@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
-	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/internal/test"
+	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/internal/handlerstest"
 )
 
 const register = "/api/user/register"
@@ -30,15 +30,15 @@ func TestAuth(t *testing.T) {
 }
 
 func testRegisterPayloadValidation(t *testing.T) {
-	tests := []test.TCase{
+	tests := []handlerstest.TCase{
 		{
 			Name:        "positive",
 			ContentType: "application/json",
-			Body: test.JSON(t, map[string]string{
+			Body: handlerstest.JSON(t, map[string]string{
 				"login":    "test",
 				"password": "longmegapassword",
 			}),
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status:      200,
 				ContentType: "application/json",
 			},
@@ -46,7 +46,7 @@ func testRegisterPayloadValidation(t *testing.T) {
 		{
 			Name:        "empty string",
 			ContentType: "application/json",
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status:      400,
 				Body:        "Bad Request",
 				ContentType: "text/plain; charset=utf-8",
@@ -56,7 +56,7 @@ func testRegisterPayloadValidation(t *testing.T) {
 			Name:        "invalid string",
 			ContentType: "application/json",
 			Body:        "hi",
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status:      400,
 				Body:        "Bad Request",
 				ContentType: "text/plain; charset=utf-8",
@@ -65,11 +65,11 @@ func testRegisterPayloadValidation(t *testing.T) {
 		{
 			Name:        "empty login",
 			ContentType: "application/json",
-			Body: test.JSON(t, map[string]string{
+			Body: handlerstest.JSON(t, map[string]string{
 				"login":    "",
 				"password": "longmegapassword",
 			}),
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status:      400,
 				Body:        "invalid login",
 				ContentType: "text/plain; charset=utf-8",
@@ -78,11 +78,11 @@ func testRegisterPayloadValidation(t *testing.T) {
 		{
 			Name:        "empty password",
 			ContentType: "application/json",
-			Body: test.JSON(t, map[string]string{
+			Body: handlerstest.JSON(t, map[string]string{
 				"login":    "test",
 				"password": "",
 			}),
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status:      400,
 				Body:        "password is too short",
 				ContentType: "text/plain; charset=utf-8",
@@ -90,18 +90,18 @@ func testRegisterPayloadValidation(t *testing.T) {
 		},
 	}
 
-	server := test.NewTestServer(t)
+	server := handlerstest.NewTestServer(t)
 	defer server.Close()
 
-	test.TestEndpoint(t, server, tests, http.MethodPost, register)
+	handlerstest.TestEndpoint(t, server, tests, http.MethodPost, register)
 }
 
 func testFlow(t *testing.T) {
-	testServer := test.NewTestServer(t)
+	testServer := handlerstest.NewTestServer(t)
 	defer testServer.Close()
 	client := resty.New().SetBaseURL(testServer.URL)
 
-	payload := test.JSON(t, map[string]string{
+	payload := handlerstest.JSON(t, map[string]string{
 		"login":    "hi",
 		"password": "longmegapassword",
 	})
@@ -152,15 +152,15 @@ func testFlow(t *testing.T) {
 }
 
 func testLoginPayloadValidation(t *testing.T) {
-	tests := []test.TCase{
+	tests := []handlerstest.TCase{
 		{
 			Name:        "positive",
 			ContentType: "application/json",
-			Body: test.JSON(t, map[string]string{
+			Body: handlerstest.JSON(t, map[string]string{
 				"login":    "test",
 				"password": "longmegapassword",
 			}),
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status:      401, // since this user not exists
 				Body:        "Unauthorized",
 				ContentType: "text/plain; charset=utf-8",
@@ -169,7 +169,7 @@ func testLoginPayloadValidation(t *testing.T) {
 		{
 			Name:        "empty string",
 			ContentType: "application/json",
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status:      400,
 				Body:        "Bad Request",
 				ContentType: "text/plain; charset=utf-8",
@@ -179,7 +179,7 @@ func testLoginPayloadValidation(t *testing.T) {
 			Name:        "invalid string",
 			ContentType: "application/json",
 			Body:        "hi",
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status:      400,
 				Body:        "Bad Request",
 				ContentType: "text/plain; charset=utf-8",
@@ -188,11 +188,11 @@ func testLoginPayloadValidation(t *testing.T) {
 		{
 			Name:        "empty login",
 			ContentType: "application/json",
-			Body: test.JSON(t, map[string]string{
+			Body: handlerstest.JSON(t, map[string]string{
 				"login":    "",
 				"password": "longmegapassword",
 			}),
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status:      401,
 				Body:        "Unauthorized",
 				ContentType: "text/plain; charset=utf-8",
@@ -201,11 +201,11 @@ func testLoginPayloadValidation(t *testing.T) {
 		{
 			Name:        "empty password",
 			ContentType: "application/json",
-			Body: test.JSON(t, map[string]string{
+			Body: handlerstest.JSON(t, map[string]string{
 				"login":    "test",
 				"password": "",
 			}),
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status:      401,
 				Body:        "Unauthorized",
 				ContentType: "text/plain; charset=utf-8",
@@ -213,8 +213,8 @@ func testLoginPayloadValidation(t *testing.T) {
 		},
 	}
 
-	server := test.NewTestServer(t)
+	server := handlerstest.NewTestServer(t)
 	defer server.Close()
 
-	test.TestEndpoint(t, server, tests, http.MethodPost, login)
+	handlerstest.TestEndpoint(t, server, tests, http.MethodPost, login)
 }

@@ -1,4 +1,4 @@
-package test
+package handlerstest
 
 import "github.com/kuvalkin/gophermart-loyalty/internal/service/order"
 

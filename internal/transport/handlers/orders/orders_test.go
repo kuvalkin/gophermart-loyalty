@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
-	test2 "github.com/kuvalkin/gophermart-loyalty/internal/test"
-	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/internal/test"
+	"github.com/kuvalkin/gophermart-loyalty/internal/test"
+	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/internal/handlerstest"
 )
 
 const orders = "/api/user/orders"
@@ -26,7 +26,7 @@ func TestOrders(t *testing.T) {
 }
 
 func testAuth(t *testing.T) {
-	server := test.NewTestServer(t)
+	server := handlerstest.NewTestServer(t)
 	defer server.Close()
 
 	client := resty.New().SetBaseURL(server.URL)
@@ -34,7 +34,7 @@ func testAuth(t *testing.T) {
 	t.Run("request without token", func(t *testing.T) {
 		response, err := client.R().
 			SetHeader("Content-Type", "text/plain").
-			SetBody(test2.NewOrderNumber()).
+			SetBody(test.NewOrderNumber()).
 			Post(orders)
 
 		require.NoError(t, err)
@@ -45,7 +45,7 @@ func testAuth(t *testing.T) {
 		response, err := client.R().
 			SetAuthToken("hi").
 			SetHeader("Content-Type", "text/plain").
-			SetBody(test2.NewOrderNumber()).
+			SetBody(test.NewOrderNumber()).
 			Post(orders)
 
 		require.NoError(t, err)
@@ -54,16 +54,16 @@ func testAuth(t *testing.T) {
 }
 
 func testUploadValidation(t *testing.T) {
-	server, token := test.NewTestServerWithLoggedInUser(t)
+	server, token := handlerstest.NewTestServerWithLoggedInUser(t)
 	defer server.Close()
 
-	tests := []test.TCase{
+	tests := []handlerstest.TCase{
 		{
 			Name:        "success",
 			Token:       token,
 			ContentType: "text/plain",
-			Body:        test2.NewOrderNumber(),
-			Want: test.Want{
+			Body:        test.NewOrderNumber(),
+			Want: handlerstest.Want{
 				Status: http.StatusAccepted,
 			},
 		},
@@ -71,10 +71,10 @@ func testUploadValidation(t *testing.T) {
 			Name:        "json",
 			Token:       token,
 			ContentType: "application/json",
-			Body: test.JSON(t, map[string]string{
-				"number": test2.NewOrderNumber(),
+			Body: handlerstest.JSON(t, map[string]string{
+				"number": test.NewOrderNumber(),
 			}),
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status: http.StatusBadRequest,
 			},
 		},
@@ -83,24 +83,24 @@ func testUploadValidation(t *testing.T) {
 			Token:       token,
 			ContentType: "text/plain",
 			Body:        "",
-			Want: test.Want{
+			Want: handlerstest.Want{
 				Status: http.StatusUnprocessableEntity,
 			},
 		},
 	}
 
-	test.TestEndpoint(t, server, tests, http.MethodPost, orders)
+	handlerstest.TestEndpoint(t, server, tests, http.MethodPost, orders)
 }
 
 func testUploadFlow(t *testing.T) {
-	testServer, token1 := test.NewTestServerWithLoggedInUser(t)
+	testServer, token1 := handlerstest.NewTestServerWithLoggedInUser(t)
 	defer testServer.Close()
 
-	token2 := test.LoginNewUser(t, testServer)
+	token2 := handlerstest.LoginNewUser(t, testServer)
 
 	client := resty.New().SetBaseURL(testServer.URL)
 
-	number := test2.NewOrderNumber()
+	number := test.NewOrderNumber()
 
 	t.Run("upload new order", func(t *testing.T) {
 		response, err := client.R().
@@ -139,7 +139,7 @@ func testUploadFlow(t *testing.T) {
 		response, err := client.R().
 			SetHeader("Content-Type", "text/plain").
 			SetAuthToken(token2).
-			SetBody(test2.NewOrderNumber()).
+			SetBody(test.NewOrderNumber()).
 			Post(orders)
 
 		require.NoError(t, err)
