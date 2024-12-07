@@ -76,7 +76,7 @@ func (p *poller) Enqueue(number string, currentStatus order.Status) (<-chan orde
 	defer p.taskList.Unlock()
 
 	if _, exists := p.taskList.tasks[number]; exists {
-		return nil, fmt.Errorf("task %s already exists", number)
+		return nil, fmt.Errorf("order %s already enqueued", number)
 	}
 
 	result := make(chan order.AccrualResult, 1)

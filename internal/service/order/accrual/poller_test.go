@@ -24,6 +24,8 @@ func TestPoller(t *testing.T) {
 	t.Run("service not responding", testPollerServiceNotResponding)
 	t.Run("order is never registered", testPollerOrderIsNeverRegistered)
 	t.Run("order status is never changed", testPollerOrderStatusIsNeverChanged)
+	t.Run("order already enqueued", testPollerOrderAlreadyEnqueued)
+	//todo rate limiting
 }
 
 func testPollerSuccess(t *testing.T) {
@@ -292,6 +294,28 @@ func testPollerOrderStatusIsNeverChanged(t *testing.T) {
 			t.FailNow()
 		}
 	}
+}
+
+func testPollerOrderAlreadyEnqueued(t *testing.T) {
+	server := httptest.NewServer(adaptor.FiberHandler(func(ctx *fiber.Ctx) error {
+		return ctx.JSON(accrualResponse{
+			Status:  string(statusProcessed),
+			Accrual: 0,
+		})
+	}))
+	defer server.Close()
+
+	p := newTestPoller(t, server)
+	defer p.Close()
+
+	number := test.NewOrderNumber()
+
+	_, err := p.Enqueue(number, order.StatusProcessing)
+	require.NoError(t, err)
+
+	_, err = p.Enqueue(number, order.StatusProcessing)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "already enqueued")
 }
 
 func newTestPoller(t *testing.T, server *httptest.Server) order.AccrualPoller {
