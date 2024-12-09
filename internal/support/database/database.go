@@ -60,7 +60,7 @@ END $$;`)
 	}
 
 	_, err = db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS orders (
-	number INT PRIMARY KEY,
+	number TEXT PRIMARY KEY,
 	user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
 	status order_status NOT NULL DEFAULT 'NEW',
 	uploaded_at TIMESTAMP NOT NULL DEFAULT now(),
@@ -73,7 +73,7 @@ END $$;`)
 	}
 
 	_, err = db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS orders_history (
-	order_number INT PRIMARY KEY REFERENCES orders(number) ON DELETE RESTRICT,
+	order_number TEXT PRIMARY KEY REFERENCES orders(number) ON DELETE RESTRICT,
 	old_status order_status DEFAULT NULL,
 	new_status order_status DEFAULT NULL,
 	changed_at TIMESTAMP NOT NULL DEFAULT now()
@@ -86,7 +86,7 @@ END $$;`)
 	_, err = db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS withdrawals (
 	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 	user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-	order_number INT NOT NULL REFERENCES orders(number) ON DELETE RESTRICT,
+	order_number TEXT NOT NULL REFERENCES orders(number) ON DELETE RESTRICT,
 	sum INT NOT NULL DEFAULT 0,
 	processed_at TIMESTAMP NOT NULL DEFAULT now()
 )`)

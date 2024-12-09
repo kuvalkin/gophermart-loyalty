@@ -42,11 +42,11 @@ func (d *dbRepo) Update(ctx context.Context, number string, status order.Status,
 	var args []any
 
 	if accrual == nil {
-		query = "UPDATE orders SET status = $1 WHERE number = $2"
-		args = []any{status, number}
+		query = "UPDATE orders SET status = $1, updated_at = $2 WHERE number = $3"
+		args = []any{status, time.Now(), number}
 	} else {
-		query = "UPDATE orders SET status = $1, accrual = $2 WHERE number = $3"
-		args = []any{status, *accrual, number}
+		query = "UPDATE orders SET status = $1, updated_at = $2, accrual = $3 WHERE number = $4"
+		args = []any{status, time.Now(), *accrual, number}
 	}
 
 	localCtx, cancel := context.WithTimeout(ctx, d.timeout)
@@ -99,7 +99,7 @@ func (d *dbRepo) List(ctx context.Context, userID string) ([]*order.Order, error
 	for rows.Next() {
 		var number string
 		var status string
-		var accrual *sql.NullInt64
+		var accrual sql.NullInt64
 		var updatedAt time.Time
 
 		if err := rows.Scan(&number, &status, &accrual, &updatedAt); err != nil {
