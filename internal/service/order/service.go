@@ -115,8 +115,14 @@ func (s *service) listenAccrualResults(resultChan <-chan AccrualResult, number s
 }
 
 func (s *service) List(ctx context.Context, userID string) ([]*Order, error) {
-	//TODO implement me
-	panic("implement me")
+	list, err := s.repo.List(ctx, userID)
+	if err != nil {
+		s.logger.Errorw("can't list orders", "userID", userID, "error", err)
+
+		return nil, ErrInternal
+	}
+
+	return list, nil
 }
 
 func checkNumber(number string) error {

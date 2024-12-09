@@ -8,11 +8,14 @@ func newDummyPoller() order.AccrualPoller {
 
 type dummyPoller struct{}
 
+const ProcessedOrderAccrual int64 = 10093
+const ProcessedOrderAccrualFloat float64 = 100.93
+
 func (p *dummyPoller) Enqueue(_ string, _ order.Status) (<-chan order.AccrualResult, error) {
 	result := make(chan order.AccrualResult, 1)
 
 	defer func() {
-		var accrual int64 = 100
+		accrual := ProcessedOrderAccrual
 
 		result <- order.AccrualResult{
 			Status:  order.StatusProcessed,

@@ -82,3 +82,45 @@ func (d *dbRepo) GetOwner(ctx context.Context, number string) (string, bool, err
 
 	return userID, true, nil
 }
+
+func (d *dbRepo) List(ctx context.Context, userID string) ([]*order.Order, error) {
+	rows, err := d.db.QueryContext(
+		ctx,
+		`SELECT number, status, accrual, updated_at FROM orders WHERE user_id = $1`,
+		userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query error: %w", err)
+	}
+
+	defer rows.Close()
+
+	result := make([]*order.Order, 0)
+	for rows.Next() {
+		var number string
+		var status string
+		var accrual *sql.NullInt64
+		var updatedAt time.Time
+
+		if err := rows.Scan(&number, &status, &accrual, &updatedAt); err != nil {
+			return nil, fmt.Errorf("scan error: %w", err)
+		}
+
+		singleResult := &order.Order{
+			Number:     number,
+			Status:     order.Status(status),
+			UploadedAt: updatedAt,
+		}
+		if accrual.Valid {
+			singleResult.Accrual = &accrual.Int64
+		}
+
+		result = append(result, singleResult)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return result, nil
+}

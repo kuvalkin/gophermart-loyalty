@@ -45,6 +45,7 @@ type Repository interface {
 	Add(ctx context.Context, userID string, number string, status Status) error
 	Update(ctx context.Context, number string, status Status, accrual *int64) error
 	GetOwner(ctx context.Context, number string) (string, bool, error)
+	List(ctx context.Context, userID string) ([]*Order, error)
 }
 
 type AccrualPoller interface {
