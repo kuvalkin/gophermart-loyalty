@@ -7,6 +7,7 @@ import (
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/order"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/money"
 )
 
 type Handler struct {
@@ -31,7 +32,7 @@ func (h *Handler) Handle(ctx *fiber.Ctx) error {
 	userID, ok := userIDRaw.(string)
 	if !ok {
 		log.Logger().Fatalw("no user id", "userIDRaw", userIDRaw)
-		panic("no use id")
+		panic("no user id")
 	}
 
 	list, err := h.orderService.List(ctx.Context(), userID)
@@ -62,7 +63,7 @@ func mapOrdersToJson(orders []*order.Order) []*orderJSON {
 		}
 
 		if o.Accrual != nil {
-			floatAccrual := float64(*o.Accrual) / 100
+			floatAccrual := money.IntToFloat(*o.Accrual)
 
 			singleResult.Accrual = &floatAccrual
 		}

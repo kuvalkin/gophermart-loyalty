@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 
+	"github.com/kuvalkin/gophermart-loyalty/internal/service/balance"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/order"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/config"
@@ -19,8 +20,9 @@ type Server struct {
 }
 
 type Services struct {
-	User  user.Service
-	Order order.Service
+	User    user.Service
+	Order   order.Service
+	Balance balance.Service
 }
 
 func NewServer(conf *config.Config, services *Services) *Server {

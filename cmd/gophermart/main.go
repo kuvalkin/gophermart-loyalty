@@ -11,9 +11,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kuvalkin/gophermart-loyalty/internal/service/balance"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/order"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/order/accrual"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
+	balanceStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/balance"
 	orderStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/order"
 	userStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/user"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/config"
@@ -70,7 +72,6 @@ func main() {
 		log.Logger().Fatalw("failed to initialize order service", "error", err)
 		os.Exit(1)
 	}
-
 	defer func() {
 		err := poller.Close()
 		if err != nil {
@@ -78,9 +79,22 @@ func main() {
 		}
 	}()
 
+	balanceService, err := initBalanceService(conf, db)
+	if err != nil {
+		log.Logger().Fatalw("failed to initialize balance service", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		err := balanceService.Close()
+		if err != nil {
+			log.Logger().Fatalw("failed to close balance service", "error", err)
+		}
+	}()
+
 	serv := transport.NewServer(conf, &transport.Services{
-		User:  userService,
-		Order: orderService,
+		User:    userService,
+		Order:   orderService,
+		Balance: balanceService,
 	})
 
 	go listenAndServe(serv)
@@ -181,6 +195,17 @@ func initOrderService(conf *config.Config, db *sql.DB) (order.Service, io.Closer
 	}
 
 	return service, poller, nil
+}
+
+func initBalanceService(conf *config.Config, db *sql.DB) (balance.Service, error) {
+	service, err := balance.NewService(
+		balanceStorage.NewDatabaseRepository(db, conf.DatabaseTimeout),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize balance service: %w", err)
+	}
+
+	return service, nil
 }
 
 func listenAndServe(serv *transport.Server) {

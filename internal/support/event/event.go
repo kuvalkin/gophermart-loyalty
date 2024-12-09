@@ -14,6 +14,10 @@ func Subscribe(topic string, fn any) error {
 	return bus.SubscribeAsync(topic, fn, false)
 }
 
+func Unsubscribe(topic string, fn any) error {
+	return bus.Unsubscribe(topic, fn)
+}
+
 func Publish(topic string, args ...interface{}) {
 	log.Logger().Named("event").Debugw(topic, "args", args)
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/auth/login"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/auth/register"
+	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/balance/get"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/orders/list"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/orders/upload"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/middleware/auth"
@@ -58,7 +59,7 @@ func routes(app *fiber.App, services *Services) {
 	userGroup.Post("/orders", authMiddleware, upload.New(services.Order).Handle)
 	userGroup.Get("/orders", authMiddleware, list.New(services.Order).Handle)
 
-	userGroup.Get("/balance", authMiddleware, stub)
+	userGroup.Get("/balance", authMiddleware, get.New(services.Balance).Handle)
 	userGroup.Post("/balance/withdraw", authMiddleware, stub)
 	userGroup.Get("/withdrawals", authMiddleware, stub)
 }

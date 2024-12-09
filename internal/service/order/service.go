@@ -109,7 +109,7 @@ func (s *service) listenAccrualResults(resultChan <-chan AccrualResult, number s
 		}
 
 		if result.Status == StatusProcessed && result.Accrual != nil {
-			event.Publish("order:processed", *result.Accrual)
+			event.Publish("order:processed", number, *result.Accrual)
 		}
 	}
 }

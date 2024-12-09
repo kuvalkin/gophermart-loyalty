@@ -3,6 +3,7 @@ package balance
 import (
 	"context"
 	"errors"
+	"io"
 )
 
 type Balance struct {
@@ -11,15 +12,19 @@ type Balance struct {
 }
 
 type WithdrawalHistoryEntry struct {
-	OrderNumber int64
+	OrderNumber string
 }
 
 var ErrInternal = errors.New("internal error")
 var ErrNotEnoughBalance = errors.New("not enough balance")
 
 type Service interface {
+	io.Closer
 	Get(ctx context.Context, userID string) (*Balance, error)
-	Increase(ctx context.Context, userID string, orderNumber int64, sum int64) error
-	Withdraw(ctx context.Context, userID string, orderNumber int64, sum int64) error
+	Withdraw(ctx context.Context, userID string, orderNumber string, sum int64) error
 	WithdrawalHistory(ctx context.Context, userID string) ([]*WithdrawalHistoryEntry, error)
+}
+
+type Repository interface {
+	Get(ctx context.Context, userID string) (*Balance, bool, error)
 }

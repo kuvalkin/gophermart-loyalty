@@ -25,7 +25,7 @@ func (h *Handler) Handle(ctx *fiber.Ctx) error {
 	userID, ok := userIDRaw.(string)
 	if !ok {
 		log.Logger().Fatalw("no user id", "userIDRaw", userIDRaw)
-		panic("no use id")
+		panic("no user id")
 	}
 
 	if !strings.HasPrefix(ctx.Get("Content-Type"), "text/plain") {

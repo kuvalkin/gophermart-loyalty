@@ -18,6 +18,7 @@ import (
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/order"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/money"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/pool"
 )
 
@@ -197,7 +198,7 @@ func (p *poller) makeRequest(number string) (accrualStatus, int64, error) {
 		return "", 0, fmt.Errorf("cant parse status from response: %w", err)
 	}
 
-	return s, int64(payload.Accrual * 100), nil
+	return s, money.FloatToInt(payload.Accrual), nil
 }
 
 func (p *poller) tuneRateLimiting(response *resty.Response) {

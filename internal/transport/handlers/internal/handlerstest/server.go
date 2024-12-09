@@ -12,8 +12,10 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/require"
 
+	"github.com/kuvalkin/gophermart-loyalty/internal/service/balance"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/order"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
+	balanceStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/balance"
 	orderStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/order"
 	userStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/user"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/config"
@@ -22,8 +24,9 @@ import (
 
 func NewTestServer(t *testing.T) *httptest.Server {
 	server := transport.NewServer(defaultTestConfig(), &transport.Services{
-		User:  userService(t),
-		Order: orderService(),
+		User:    userService(t),
+		Order:   orderService(),
+		Balance: balanceService(t),
 	})
 
 	return server.NewTestServer()
@@ -78,6 +81,13 @@ func userService(t *testing.T) user.Service {
 
 func orderService() order.Service {
 	return order.NewService(orderStorage.NewInMemoryRepository(), newDummyPoller())
+}
+
+func balanceService(t *testing.T) balance.Service {
+	b, err := balance.NewService(balanceStorage.NewInMemoryRepository())
+	require.NoError(t, err)
+
+	return b
 }
 
 func defaultTestConfig() *config.Config {
