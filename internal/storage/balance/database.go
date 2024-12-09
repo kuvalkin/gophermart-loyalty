@@ -37,3 +37,20 @@ func (d *dbRepo) Get(ctx context.Context, userID string) (*balance.Balance, bool
 
 	return b, true, nil
 }
+
+func (d *dbRepo) Increase(ctx context.Context, userID string, increment int64) error {
+	localCtx, cancel := context.WithTimeout(ctx, d.timeout)
+	defer cancel()
+
+	_, err := d.db.ExecContext(
+		localCtx,
+		"INSERT INTO balances (user_id, current, withdrawn) VALUES ($1, $2, 0) ON CONFLICT (user_id) DO UPDATE SET current = current + excluded.current",
+		userID,
+		increment,
+	)
+	if err != nil {
+		return fmt.Errorf("query error: %w", err)
+	}
+
+	return nil
+}

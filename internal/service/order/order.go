@@ -37,7 +37,7 @@ var ErrInternal = errors.New("internal error")
 
 type Service interface {
 	Upload(ctx context.Context, userID string, number string) error
-	AddToProcessQueue(number string, currentStatus Status) error
+	AddToProcessQueue(number, userID string, currentStatus Status) error
 	List(ctx context.Context, userID string) ([]*Order, error)
 }
 

@@ -28,3 +28,18 @@ func (m *memoryRepo) Get(_ context.Context, userID string) (*balance.Balance, bo
 
 	return value.balance, true, nil
 }
+
+func (m *memoryRepo) Increase(_ context.Context, userID string, increment int64) error {
+	v, ok := m.storage[userID]
+	if !ok {
+		v = &value{
+			balance: &balance.Balance{},
+		}
+
+		m.storage[userID] = v
+	}
+
+	v.balance.Current += increment
+
+	return nil
+}

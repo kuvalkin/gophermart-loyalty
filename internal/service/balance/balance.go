@@ -27,4 +27,5 @@ type Service interface {
 
 type Repository interface {
 	Get(ctx context.Context, userID string) (*Balance, bool, error)
+	Increase(ctx context.Context, userID string, increment int64) error
 }

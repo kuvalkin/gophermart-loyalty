@@ -57,7 +57,7 @@ func (s *service) Upload(ctx context.Context, userID string, number string) erro
 		return ErrInternal
 	}
 
-	err = s.AddToProcessQueue(number, StatusNew)
+	err = s.AddToProcessQueue(number, userID, StatusNew)
 	if err != nil {
 		localLogger.Errorw("can't add to process queue", "error", err)
 
@@ -67,7 +67,7 @@ func (s *service) Upload(ctx context.Context, userID string, number string) erro
 	return nil
 }
 
-func (s *service) AddToProcessQueue(number string, currentStatus Status) error {
+func (s *service) AddToProcessQueue(number, userID string, currentStatus Status) error {
 	if currentStatus.IsFinal() {
 		return ErrAlreadyProcessed
 	}
@@ -79,12 +79,12 @@ func (s *service) AddToProcessQueue(number string, currentStatus Status) error {
 		return ErrInternal
 	}
 
-	go s.listenAccrualResults(resultChan, number)
+	go s.listenAccrualResults(resultChan, number, userID)
 
 	return nil
 }
 
-func (s *service) listenAccrualResults(resultChan <-chan AccrualResult, number string) {
+func (s *service) listenAccrualResults(resultChan <-chan AccrualResult, number string, userID string) {
 	localLogger := s.logger.WithLazy("number", number)
 
 	for result := range resultChan {
@@ -109,7 +109,7 @@ func (s *service) listenAccrualResults(resultChan <-chan AccrualResult, number s
 		}
 
 		if result.Status == StatusProcessed && result.Accrual != nil {
-			event.Publish("order:processed", number, *result.Accrual)
+			event.Publish("order:processed", userID, *result.Accrual)
 		}
 	}
 }

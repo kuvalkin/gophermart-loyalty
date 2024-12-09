@@ -66,6 +66,9 @@ func (s *service) Close() error {
 	return nil
 }
 
-func (s *service) onOrderProcessed(orderNumber string, accrual int64) {
-
+func (s *service) onOrderProcessed(userID string, accrual int64) {
+	err := s.repo.Increase(context.Background(), userID, accrual)
+	if err != nil {
+		s.logger.Errorw("failed to increase balance", "userID", userID, "error", err)
+	}
 }

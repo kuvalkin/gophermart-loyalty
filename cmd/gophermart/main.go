@@ -188,7 +188,7 @@ func initOrderService(conf *config.Config, db *sql.DB) (order.Service, io.Closer
 	}
 
 	for _, uo := range unprocessed {
-		err = service.AddToProcessQueue(uo.Number, uo.CurrentStatus)
+		err = service.AddToProcessQueue(uo.Number, uo.UserID, uo.CurrentStatus)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to add unprocessed order to queue: %w", err)
 		}
