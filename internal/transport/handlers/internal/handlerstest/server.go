@@ -84,7 +84,7 @@ func orderService() order.Service {
 }
 
 func balanceService(t *testing.T) balance.Service {
-	b, err := balance.NewService(balanceStorage.NewInMemoryRepository())
+	b, err := balance.NewService(balanceStorage.NewInMemoryRepository(), nil, nil)
 	require.NoError(t, err)
 
 	return b

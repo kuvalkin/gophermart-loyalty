@@ -16,11 +16,16 @@ type memoryRepo struct {
 	storage map[string]*value
 }
 
+func (m *memoryRepo) Withdraw(ctx context.Context, userID string, decrement int64, tx balance.Transaction) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 type value struct {
 	balance *balance.Balance
 }
 
-func (m *memoryRepo) Get(_ context.Context, userID string) (*balance.Balance, bool, error) {
+func (m *memoryRepo) Get(ctx context.Context, userID string, tx balance.Transaction) (*balance.Balance, bool, error) {
 	value, ok := m.storage[userID]
 	if !ok {
 		return nil, false, nil

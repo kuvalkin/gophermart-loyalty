@@ -8,12 +8,15 @@ import (
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/event"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/order"
 )
 
-func NewService(repo Repository) (Service, error) {
+func NewService(repo Repository, wRepo WithdrawalsRepository, txProvider TransactionProvider) (Service, error) {
 	s := &service{
-		repo:   repo,
-		logger: log.Logger().Named("balanceService"),
+		repo:            repo,
+		withdrawalsRepo: wRepo,
+		txProvider:      txProvider,
+		logger:          log.Logger().Named("balanceService"),
 	}
 
 	err := event.Subscribe("order:processed", s.onOrderProcessed)
@@ -25,12 +28,14 @@ func NewService(repo Repository) (Service, error) {
 }
 
 type service struct {
-	repo   Repository
-	logger *zap.SugaredLogger
+	repo            Repository
+	withdrawalsRepo WithdrawalsRepository
+	txProvider      TransactionProvider
+	logger          *zap.SugaredLogger
 }
 
 func (s *service) Get(ctx context.Context, userID string) (*Balance, error) {
-	b, found, err := s.repo.Get(ctx, userID)
+	b, found, err := s.repo.Get(ctx, userID, nil)
 	if err != nil {
 		s.logger.Errorw("error getting balance", "userID", userID, "error", err)
 
@@ -47,8 +52,76 @@ func (s *service) Get(ctx context.Context, userID string) (*Balance, error) {
 }
 
 func (s *service) Withdraw(ctx context.Context, userID string, orderNumber string, sum int64) error {
-	//TODO implement me
-	panic("implement me")
+	localLogger := s.logger.WithLazy("userID", userID, "orderNumber", orderNumber, "sum", sum)
+
+	err := order.ValidateNumber(orderNumber)
+	if err != nil {
+		localLogger.Debugw("invalid order number", "error", err)
+
+		return ErrInvalidOrderNumber
+	}
+
+	if sum <= 0 {
+		localLogger.Debugw("invalid sum")
+
+		return ErrInvalidWithdrawalSum
+	}
+
+	tx, err := s.txProvider.StartTransaction(ctx)
+	if err != nil {
+		localLogger.Errorw("error starting transaction", "error", err)
+
+		return ErrInternal
+	}
+
+	defer func() {
+		err := tx.Rollback()
+		if err != nil {
+			localLogger.Errorw("error rolling back transaction", "error", err)
+		}
+	}()
+
+	b, found, err := s.repo.Get(ctx, userID, tx)
+	if err != nil {
+		localLogger.Errorw("error getting balance", "error", err)
+
+		return ErrInternal
+	}
+
+	if !found {
+		localLogger.Debugw("balance not found")
+
+		return ErrNotEnoughBalance
+	}
+
+	if sum < b.Current {
+		localLogger.Debugw("balance is insufficient", "current", b.Current)
+
+		return ErrNotEnoughBalance
+	}
+
+	err = s.repo.Withdraw(ctx, userID, sum, tx)
+	if err != nil {
+		localLogger.Errorw("error withdrawing balance", "error", err)
+
+		return ErrInternal
+	}
+
+	err = s.withdrawalsRepo.Add(ctx, userID, orderNumber, sum, tx)
+	if err != nil {
+		localLogger.Errorw("error writing history", "error", err)
+
+		return ErrInternal
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		localLogger.Errorw("error committing transaction", "error", err)
+
+		return ErrInternal
+	}
+
+	return nil
 }
 
 func (s *service) WithdrawalHistory(ctx context.Context, userID string) ([]*WithdrawalHistoryEntry, error) {

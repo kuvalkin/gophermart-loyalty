@@ -9,6 +9,7 @@ import (
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/event"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/order"
 )
 
 func NewService(repo Repository, poller AccrualPoller) Service {
@@ -28,7 +29,7 @@ type service struct {
 func (s *service) Upload(ctx context.Context, userID string, number string) error {
 	localLogger := s.logger.WithLazy("userID", userID, "number", number)
 
-	err := checkNumber(number)
+	err := order.ValidateNumber(number)
 	if err != nil {
 		localLogger.Debugw("invalid number", "error", err)
 

@@ -16,6 +16,7 @@ import (
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/order/accrual"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
 	balanceStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/balance"
+	"github.com/kuvalkin/gophermart-loyalty/internal/storage/balance/withdrawals"
 	orderStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/order"
 	userStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/user"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/config"
@@ -200,6 +201,8 @@ func initOrderService(conf *config.Config, db *sql.DB) (order.Service, io.Closer
 func initBalanceService(conf *config.Config, db *sql.DB) (balance.Service, error) {
 	service, err := balance.NewService(
 		balanceStorage.NewDatabaseRepository(db, conf.DatabaseTimeout),
+		withdrawals.NewDatabaseRepository(db, conf.DatabaseTimeout),
+		balanceStorage.NewDatabaseTransactionProvider(db),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize balance service: %w", err)

@@ -13,10 +13,13 @@ type Balance struct {
 
 type WithdrawalHistoryEntry struct {
 	OrderNumber string
+	Sum         int64
 }
 
 var ErrInternal = errors.New("internal error")
 var ErrNotEnoughBalance = errors.New("not enough balance")
+var ErrInvalidOrderNumber = errors.New("invalid order number")
+var ErrInvalidWithdrawalSum = errors.New("invalid withdrawal sum")
 
 type Service interface {
 	io.Closer
@@ -25,7 +28,22 @@ type Service interface {
 	WithdrawalHistory(ctx context.Context, userID string) ([]*WithdrawalHistoryEntry, error)
 }
 
+type TransactionProvider interface {
+	StartTransaction(ctx context.Context) (Transaction, error)
+}
+
+type Transaction interface {
+	Commit() error
+	// Rollback a transaction. If the transaction is already commited or rolled back, should return nil
+	Rollback() error
+}
+
 type Repository interface {
-	Get(ctx context.Context, userID string) (*Balance, bool, error)
+	Get(ctx context.Context, userID string, tx Transaction) (*Balance, bool, error)
 	Increase(ctx context.Context, userID string, increment int64) error
+	Withdraw(ctx context.Context, userID string, decrement int64, tx Transaction) error
+}
+
+type WithdrawalsRepository interface {
+	Add(ctx context.Context, userID string, orderNumber string, sum int64, tx Transaction) error
 }
