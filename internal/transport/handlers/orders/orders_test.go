@@ -95,9 +95,9 @@ func testUploadValidation(t *testing.T) {
 			Name:        "json",
 			Token:       token,
 			ContentType: "application/json",
-			Body: handlerstest.JSON(t, map[string]string{
+			Body: map[string]string{
 				"number": test.NewOrderNumber(),
-			}),
+			},
 			Want: handlerstest.Want{
 				Status: http.StatusBadRequest,
 			},

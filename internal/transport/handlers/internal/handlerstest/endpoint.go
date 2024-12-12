@@ -20,7 +20,7 @@ type TCase struct {
 	Name        string
 	Token       string
 	ContentType string
-	Body        string
+	Body        any
 	Want
 }
 

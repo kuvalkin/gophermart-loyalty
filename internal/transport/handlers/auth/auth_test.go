@@ -34,10 +34,10 @@ func testRegisterPayloadValidation(t *testing.T) {
 		{
 			Name:        "positive",
 			ContentType: "application/json",
-			Body: handlerstest.JSON(t, map[string]string{
+			Body: map[string]string{
 				"login":    "test",
 				"password": "longmegapassword",
-			}),
+			},
 			Want: handlerstest.Want{
 				Status:      200,
 				ContentType: "application/json",
@@ -65,10 +65,10 @@ func testRegisterPayloadValidation(t *testing.T) {
 		{
 			Name:        "empty login",
 			ContentType: "application/json",
-			Body: handlerstest.JSON(t, map[string]string{
+			Body: map[string]string{
 				"login":    "",
 				"password": "longmegapassword",
-			}),
+			},
 			Want: handlerstest.Want{
 				Status:      400,
 				Body:        "invalid login",
@@ -78,10 +78,10 @@ func testRegisterPayloadValidation(t *testing.T) {
 		{
 			Name:        "empty password",
 			ContentType: "application/json",
-			Body: handlerstest.JSON(t, map[string]string{
+			Body: map[string]string{
 				"login":    "test",
 				"password": "",
-			}),
+			},
 			Want: handlerstest.Want{
 				Status:      400,
 				Body:        "password is too short",
@@ -101,10 +101,10 @@ func testFlow(t *testing.T) {
 	defer testServer.Close()
 	client := resty.New().SetBaseURL(testServer.URL)
 
-	payload := handlerstest.JSON(t, map[string]string{
+	payload := map[string]string{
 		"login":    "hi",
 		"password": "longmegapassword",
-	})
+	}
 
 	type result struct {
 		Token string `json:"token"`
@@ -156,10 +156,10 @@ func testLoginPayloadValidation(t *testing.T) {
 		{
 			Name:        "positive",
 			ContentType: "application/json",
-			Body: handlerstest.JSON(t, map[string]string{
+			Body: map[string]string{
 				"login":    "test",
 				"password": "longmegapassword",
-			}),
+			},
 			Want: handlerstest.Want{
 				Status:      401, // since this user not exists
 				Body:        "Unauthorized",
@@ -188,10 +188,10 @@ func testLoginPayloadValidation(t *testing.T) {
 		{
 			Name:        "empty login",
 			ContentType: "application/json",
-			Body: handlerstest.JSON(t, map[string]string{
+			Body: map[string]string{
 				"login":    "",
 				"password": "longmegapassword",
-			}),
+			},
 			Want: handlerstest.Want{
 				Status:      401,
 				Body:        "Unauthorized",
@@ -201,10 +201,10 @@ func testLoginPayloadValidation(t *testing.T) {
 		{
 			Name:        "empty password",
 			ContentType: "application/json",
-			Body: handlerstest.JSON(t, map[string]string{
+			Body: map[string]string{
 				"login":    "test",
 				"password": "",
-			}),
+			},
 			Want: handlerstest.Want{
 				Status:      401,
 				Body:        "Unauthorized",

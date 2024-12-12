@@ -36,6 +36,8 @@ func (h *Handler) Handle(ctx *fiber.Ctx) error {
 	p := new(payload)
 
 	if err := ctx.BodyParser(p); err != nil {
+		log.Logger().Debugw("invalid payload", "err", err, "requestid", ctx.Locals("requestid"))
+
 		return ctx.SendStatus(fiber.StatusBadRequest)
 	}
 
@@ -46,7 +48,9 @@ func (h *Handler) Handle(ctx *fiber.Ctx) error {
 	} else if errors.Is(err, balance.ErrInvalidOrderNumber) {
 		return ctx.SendStatus(fiber.StatusUnprocessableEntity)
 	} else if errors.Is(err, balance.ErrInvalidWithdrawalSum) {
-		return ctx.SendStatus(fiber.StatusBadRequest)
+		ctx.Status(fiber.StatusBadRequest)
+
+		return ctx.SendString(err.Error())
 	} else if err != nil {
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}

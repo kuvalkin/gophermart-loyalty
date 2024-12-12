@@ -95,7 +95,7 @@ func (s *service) Withdraw(ctx context.Context, userID string, orderNumber strin
 		return ErrNotEnoughBalance
 	}
 
-	if sum < b.Current {
+	if sum > b.Current {
 		localLogger.Debugw("balance is insufficient", "current", b.Current)
 
 		return ErrNotEnoughBalance

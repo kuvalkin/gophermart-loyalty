@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/auth/internal"
 )
 
@@ -28,6 +29,8 @@ func (h *Handler) Handle(ctx *fiber.Ctx) error {
 	p := new(payload)
 
 	if err := ctx.BodyParser(p); err != nil {
+		log.Logger().Debugw("invalid payload", "err", err, "requestid", ctx.Locals("requestid"))
+
 		return ctx.SendStatus(fiber.StatusBadRequest)
 	}
 

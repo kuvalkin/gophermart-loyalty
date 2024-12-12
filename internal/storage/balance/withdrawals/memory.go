@@ -9,7 +9,9 @@ import (
 )
 
 func NewMemoryRepository() balance.WithdrawalsRepository {
-	return &memoryRepo{}
+	return &memoryRepo{
+		storage: make(map[string][]*balance.WithdrawalHistoryEntry),
+	}
 }
 
 type memoryRepo struct {
@@ -17,13 +19,12 @@ type memoryRepo struct {
 }
 
 func (d *memoryRepo) Add(_ context.Context, userID string, orderNumber string, sum int64, _ transaction.Transaction) error {
-	s, ok := d.storage[userID]
+	_, ok := d.storage[userID]
 	if !ok {
-		s = make([]*balance.WithdrawalHistoryEntry, 0)
-		d.storage[userID] = s
+		d.storage[userID] = make([]*balance.WithdrawalHistoryEntry, 0)
 	}
 
-	s = append(s, &balance.WithdrawalHistoryEntry{
+	d.storage[userID] = append(d.storage[userID], &balance.WithdrawalHistoryEntry{
 		OrderNumber: orderNumber,
 		Sum:         sum,
 		ProcessedAt: time.Now(),

@@ -1,7 +1,6 @@
 package handlerstest
 
 import (
-	"encoding/json"
 	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +19,7 @@ import (
 	orderStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/order"
 	userStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/user"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/config"
+	"github.com/kuvalkin/gophermart-loyalty/internal/test"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport"
 )
 
@@ -66,6 +66,19 @@ func NewTestServerWithLoggedInUser(t *testing.T) (*httptest.Server, string) {
 	return server, token
 }
 
+// IncreaseBalance and return the increment
+func IncreaseBalance(t *testing.T, server *httptest.Server, token string) int64 {
+	resp, err := resty.New().SetBaseURL(server.URL).R().
+		SetAuthToken(token).
+		SetBody(test.NewOrderNumber()).
+		Post("/api/user/orders")
+
+	require.NoError(t, err)
+	require.Equal(t, http.StatusAccepted, resp.StatusCode())
+
+	return ProcessedOrderAccrual
+}
+
 func userService(t *testing.T) user.Service {
 	conf := defaultTestConfig()
 
@@ -100,11 +113,4 @@ func defaultTestConfig() *config.Config {
 		MinPasswordLength:     12,
 		TokenExpirationPeriod: time.Hour,
 	}
-}
-
-func JSON(t *testing.T, payload map[string]string) string {
-	buf, err := json.Marshal(payload)
-	require.NoError(t, err)
-
-	return string(buf)
 }
