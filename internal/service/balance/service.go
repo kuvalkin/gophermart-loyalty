@@ -126,8 +126,14 @@ func (s *service) Withdraw(ctx context.Context, userID string, orderNumber strin
 }
 
 func (s *service) WithdrawalHistory(ctx context.Context, userID string) ([]*WithdrawalHistoryEntry, error) {
-	//TODO implement me
-	panic("implement me")
+	list, err := s.withdrawalsRepo.List(ctx, userID)
+	if err != nil {
+		s.logger.Errorw("error listing withdrawals", "error", err, "userID", userID)
+
+		return nil, ErrInternal
+	}
+
+	return list, nil
 }
 
 func (s *service) Close() error {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/transaction"
 )
@@ -16,6 +17,7 @@ type Balance struct {
 type WithdrawalHistoryEntry struct {
 	OrderNumber string
 	Sum         int64
+	ProcessedAt time.Time
 }
 
 var ErrInternal = errors.New("internal error")
@@ -38,4 +40,5 @@ type Repository interface {
 
 type WithdrawalsRepository interface {
 	Add(ctx context.Context, userID string, orderNumber string, sum int64, tx transaction.Transaction) error
+	List(ctx context.Context, userID string) ([]*WithdrawalHistoryEntry, error)
 }
