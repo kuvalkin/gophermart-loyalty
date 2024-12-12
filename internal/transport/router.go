@@ -1,8 +1,6 @@
 package transport
 
 import (
-	"fmt"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
@@ -13,6 +11,8 @@ import (
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/auth/login"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/auth/register"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/balance/get"
+	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/balance/withdraw"
+	withdrawalsList "github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/balance/withdraw/list"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/orders/list"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/handlers/orders/upload"
 	"github.com/kuvalkin/gophermart-loyalty/internal/transport/middleware/auth"
@@ -46,11 +46,6 @@ func routes(app *fiber.App, services *Services) {
 
 	userGroup := apiGroup.Group("/user")
 
-	//todo real handlers
-	stub := func(ctx *fiber.Ctx) error {
-		return ctx.SendString(fmt.Sprintf("%v %v", ctx.Method(), ctx.Path()))
-	}
-
 	userGroup.Post("/register", register.New(services.User).Handle)
 	userGroup.Post("/login", login.New(services.User).Handle)
 
@@ -60,6 +55,6 @@ func routes(app *fiber.App, services *Services) {
 	userGroup.Get("/orders", authMiddleware, list.New(services.Order).Handle)
 
 	userGroup.Get("/balance", authMiddleware, get.New(services.Balance).Handle)
-	userGroup.Post("/balance/withdraw", authMiddleware, stub)
-	userGroup.Get("/withdrawals", authMiddleware, stub)
+	userGroup.Post("/balance/withdraw", authMiddleware, withdraw.New(services.Balance).Handle)
+	userGroup.Get("/withdrawals", authMiddleware, withdrawalsList.New(services.Balance).Handle)
 }
