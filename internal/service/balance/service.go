@@ -9,9 +9,10 @@ import (
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/event"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/log"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/order"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/transaction"
 )
 
-func NewService(repo Repository, wRepo WithdrawalsRepository, txProvider TransactionProvider) (Service, error) {
+func NewService(repo Repository, wRepo WithdrawalsRepository, txProvider transaction.Provider) (Service, error) {
 	s := &service{
 		repo:            repo,
 		withdrawalsRepo: wRepo,
@@ -30,7 +31,7 @@ func NewService(repo Repository, wRepo WithdrawalsRepository, txProvider Transac
 type service struct {
 	repo            Repository
 	withdrawalsRepo WithdrawalsRepository
-	txProvider      TransactionProvider
+	txProvider      transaction.Provider
 	logger          *zap.SugaredLogger
 }
 

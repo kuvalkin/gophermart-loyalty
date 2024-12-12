@@ -3,55 +3,42 @@ package internal
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"fmt"
 
-	"github.com/kuvalkin/gophermart-loyalty/internal/service/balance"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/transaction"
 )
 
-func NewTx(dbTx *sql.Tx) balance.Transaction {
-	return &databaseTx{dbTx: dbTx}
-}
-
-type databaseTx struct {
-	dbTx *sql.Tx
-}
-
-func (t *databaseTx) Commit() error {
-	return t.dbTx.Commit()
-}
-
-func (t *databaseTx) Rollback() error {
-	err := t.dbTx.Rollback()
-	if errors.Is(err, sql.ErrTxDone) {
-		return nil
-	}
-
-	return err
-}
-
-func ExecContext(ctx context.Context, db *sql.DB, tx balance.Transaction, query string, args ...any) (sql.Result, error) {
+func ExecContext(ctx context.Context, db *sql.DB, tx transaction.Transaction, query string, args ...any) (sql.Result, error) {
 	var res sql.Result
 	var err error
 	if tx == nil {
 		res, err = db.ExecContext(ctx, query, args...)
 	} else {
-		dbTx := tx.(*databaseTx)
+		dbTx, ok := tx.(*transaction.DatabaseTx)
+		if !ok {
+			return nil, fmt.Errorf("invalid transaction type: %T", tx)
+		}
 
-		res, err = dbTx.dbTx.ExecContext(ctx, query, args...)
+		res, err = dbTx.DBTx.ExecContext(ctx, query, args...)
 	}
 
 	return res, err
 }
 
-func QueryRowContext(ctx context.Context, db *sql.DB, tx balance.Transaction, query string, args ...any) *sql.Row {
-	var row *sql.Row
+func QueryRowContext(ctx context.Context, db *sql.DB, tx transaction.Transaction, query string, args ...any) (*sql.Row, error) {
 	if tx == nil {
-		row = db.QueryRowContext(ctx, query, args...)
-	} else {
-		dbTx := tx.(*databaseTx)
+		row := db.QueryRowContext(ctx, query, args...)
 
-		row = dbTx.dbTx.QueryRowContext(ctx, query, args...)
+		return row, nil
+	} else {
+		dbTx, ok := tx.(*transaction.DatabaseTx)
+		if !ok {
+			return nil, fmt.Errorf("invalid transaction type: %T", tx)
+		}
+
+		row := dbTx.DBTx.QueryRowContext(ctx, query, args...)
+
+		return row, nil
 	}
 
-	return row
 }

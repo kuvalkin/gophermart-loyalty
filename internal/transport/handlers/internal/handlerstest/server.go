@@ -16,6 +16,7 @@ import (
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/order"
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/user"
 	balanceStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/balance"
+	"github.com/kuvalkin/gophermart-loyalty/internal/storage/balance/withdrawals"
 	orderStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/order"
 	userStorage "github.com/kuvalkin/gophermart-loyalty/internal/storage/user"
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/config"
@@ -84,7 +85,7 @@ func orderService() order.Service {
 }
 
 func balanceService(t *testing.T) balance.Service {
-	b, err := balance.NewService(balanceStorage.NewInMemoryRepository(), nil, nil)
+	b, err := balance.NewService(balanceStorage.NewInMemoryRepository(), withdrawals.NewMemoryRepository(), newDummyTxProvider())
 	require.NoError(t, err)
 
 	return b

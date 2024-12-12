@@ -8,6 +8,7 @@ import (
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/balance"
 	"github.com/kuvalkin/gophermart-loyalty/internal/storage/balance/internal"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/transaction"
 )
 
 func NewDatabaseRepository(db *sql.DB, timeout time.Duration) balance.WithdrawalsRepository {
@@ -19,7 +20,7 @@ type dbRepo struct {
 	timeout time.Duration
 }
 
-func (d *dbRepo) Add(ctx context.Context, userID string, orderNumber string, sum int64, tx balance.Transaction) error {
+func (d *dbRepo) Add(ctx context.Context, userID string, orderNumber string, sum int64, tx transaction.Transaction) error {
 	localCtx, cancel := context.WithTimeout(ctx, d.timeout)
 	defer cancel()
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/transaction"
 )
 
 type Balance struct {
@@ -28,22 +30,12 @@ type Service interface {
 	WithdrawalHistory(ctx context.Context, userID string) ([]*WithdrawalHistoryEntry, error)
 }
 
-type TransactionProvider interface {
-	StartTransaction(ctx context.Context) (Transaction, error)
-}
-
-type Transaction interface {
-	Commit() error
-	// Rollback a transaction. If the transaction is already commited or rolled back, should return nil
-	Rollback() error
-}
-
 type Repository interface {
-	Get(ctx context.Context, userID string, tx Transaction) (*Balance, bool, error)
+	Get(ctx context.Context, userID string, tx transaction.Transaction) (*Balance, bool, error)
 	Increase(ctx context.Context, userID string, increment int64) error
-	Withdraw(ctx context.Context, userID string, decrement int64, tx Transaction) error
+	Withdraw(ctx context.Context, userID string, decrement int64, tx transaction.Transaction) error
 }
 
 type WithdrawalsRepository interface {
-	Add(ctx context.Context, userID string, orderNumber string, sum int64, tx Transaction) error
+	Add(ctx context.Context, userID string, orderNumber string, sum int64, tx transaction.Transaction) error
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/service/balance"
+	"github.com/kuvalkin/gophermart-loyalty/internal/support/transaction"
 )
 
 func NewInMemoryRepository() balance.Repository {
@@ -16,16 +17,11 @@ type memoryRepo struct {
 	storage map[string]*value
 }
 
-func (m *memoryRepo) Withdraw(ctx context.Context, userID string, decrement int64, tx balance.Transaction) error {
-	//TODO implement me
-	panic("implement me")
-}
-
 type value struct {
 	balance *balance.Balance
 }
 
-func (m *memoryRepo) Get(ctx context.Context, userID string, tx balance.Transaction) (*balance.Balance, bool, error) {
+func (m *memoryRepo) Get(_ context.Context, userID string, _ transaction.Transaction) (*balance.Balance, bool, error) {
 	value, ok := m.storage[userID]
 	if !ok {
 		return nil, false, nil
@@ -45,6 +41,18 @@ func (m *memoryRepo) Increase(_ context.Context, userID string, increment int64)
 	}
 
 	v.balance.Current += increment
+
+	return nil
+}
+
+func (m *memoryRepo) Withdraw(_ context.Context, userID string, decrement int64, _ transaction.Transaction) error {
+	v, ok := m.storage[userID]
+	if !ok {
+		return nil
+	}
+
+	v.balance.Current -= decrement
+	v.balance.Withdrawn += decrement
 
 	return nil
 }
