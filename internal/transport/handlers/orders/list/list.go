@@ -47,12 +47,12 @@ func (h *Handler) Handle(ctx *fiber.Ctx) error {
 		ctx.Status(fiber.StatusOK)
 	}
 
-	json := mapOrdersToJson(list)
+	json := mapOrdersToJSON(list)
 
 	return ctx.JSON(json)
 }
 
-func mapOrdersToJson(orders []*order.Order) []*orderJSON {
+func mapOrdersToJSON(orders []*order.Order) []*orderJSON {
 	result := make([]*orderJSON, 0, len(orders))
 
 	for _, o := range orders {

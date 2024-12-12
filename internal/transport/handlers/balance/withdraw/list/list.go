@@ -20,7 +20,7 @@ func New(service balance.Service) *Handler {
 	}
 }
 
-type historyEntryJson struct {
+type historyEntryJSON struct {
 	OrderNumber string  `json:"order"`
 	Sum         float64 `json:"sum"`
 	ProcessedAt string  `json:"processed_at"`
@@ -46,16 +46,16 @@ func (h *Handler) Handle(ctx *fiber.Ctx) error {
 		ctx.Status(fiber.StatusOK)
 	}
 
-	json := mapEntriesToJson(list)
+	json := mapEntriesToJSON(list)
 
 	return ctx.JSON(json)
 }
 
-func mapEntriesToJson(entries []*balance.WithdrawalHistoryEntry) []*historyEntryJson {
-	result := make([]*historyEntryJson, 0, len(entries))
+func mapEntriesToJSON(entries []*balance.WithdrawalHistoryEntry) []*historyEntryJSON {
+	result := make([]*historyEntryJSON, 0, len(entries))
 
 	for _, e := range entries {
-		singleResult := &historyEntryJson{
+		singleResult := &historyEntryJSON{
 			OrderNumber: e.OrderNumber,
 			Sum:         money.IntToFloat(e.Sum),
 			ProcessedAt: e.ProcessedAt.Format(time.RFC3339),

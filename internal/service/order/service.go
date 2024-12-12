@@ -2,9 +2,7 @@ package order
 
 import (
 	"context"
-	"errors"
 
-	"github.com/ShiraazMoollatjie/goluhn"
 	"go.uber.org/zap"
 
 	"github.com/kuvalkin/gophermart-loyalty/internal/support/event"
@@ -124,13 +122,4 @@ func (s *service) List(ctx context.Context, userID string) ([]*Order, error) {
 	}
 
 	return list, nil
-}
-
-func checkNumber(number string) error {
-	if number == "" {
-		// goluhn doesnt return error on empty string
-		return errors.New("empty number")
-	}
-
-	return goluhn.Validate(number)
 }
