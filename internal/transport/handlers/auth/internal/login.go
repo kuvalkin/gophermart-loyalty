@@ -2,6 +2,7 @@ package internal
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -23,6 +24,8 @@ func Login(ctx *fiber.Ctx, userService user.Service, login string, password stri
 
 		return ctx.SendString(err.Error())
 	}
+
+	ctx.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	ctx.Status(fiber.StatusOK)
 
