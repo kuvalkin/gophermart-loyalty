@@ -7,7 +7,7 @@ import (
 )
 
 type accrualResponse struct {
-	Status  string  `json:"accrualStatus"`
+	Status  string  `json:"status"`
 	Accrual float64 `json:"accrual"`
 }
 
