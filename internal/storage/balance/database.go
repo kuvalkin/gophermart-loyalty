@@ -55,7 +55,7 @@ func (d *dbRepo) Increase(ctx context.Context, userID string, increment int64) e
 
 	_, err := d.db.ExecContext(
 		localCtx,
-		"INSERT INTO balances (user_id, current, withdrawn) VALUES ($1, $2, 0) ON CONFLICT (user_id) DO UPDATE SET current = current + excluded.current",
+		"INSERT INTO balances (user_id, current, withdrawn) VALUES ($1, $2, 0) ON CONFLICT (user_id) DO UPDATE SET current = balances.current + excluded.current",
 		userID,
 		increment,
 	)

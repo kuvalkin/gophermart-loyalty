@@ -72,23 +72,13 @@ END $$;`)
 		return fmt.Errorf("could not create orders table: %w", err)
 	}
 
-	_, err = db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS orders_history (
-	order_number TEXT PRIMARY KEY REFERENCES orders(number) ON DELETE RESTRICT,
-	old_status order_status DEFAULT NULL,
-	new_status order_status DEFAULT NULL,
-	changed_at TIMESTAMP NOT NULL DEFAULT now()
-)`)
-
-	if err != nil {
-		return fmt.Errorf("could not create orders history table: %w", err)
-	}
-
 	_, err = db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS withdrawals (
-	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 	user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-	order_number TEXT NOT NULL REFERENCES orders(number) ON DELETE RESTRICT,
+	order_number TEXT NOT NULL,
 	sum INT NOT NULL DEFAULT 0,
-	processed_at TIMESTAMP NOT NULL DEFAULT now()
+	processed_at TIMESTAMP NOT NULL DEFAULT now(),
+	
+	PRIMARY KEY (user_id, order_number)
 )`)
 
 	if err != nil {

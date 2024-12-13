@@ -19,7 +19,7 @@ func GetUnprocessedOrders(ctx context.Context, db *sql.DB) ([]*UnprocessedOrder,
 		ctx,
 		`SELECT number, user_id, status FROM orders WHERE status IN ($1, $2)`,
 		string(order.StatusNew),
-		string(order.StatusProcessed),
+		string(order.StatusProcessing),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("query error: %w", err)
